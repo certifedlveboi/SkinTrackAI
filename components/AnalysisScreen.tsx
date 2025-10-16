@@ -172,40 +172,283 @@ export default function AnalysisScreen({
     return configs[type] || configs.skinScore;
   };
 
-  const getOverlayAreas = (type: KPIType) => {
-    // Define overlay positions for each KPI type
-    const overlays: Record<string, Array<{ top: string; left: string; width: string; height: string }>> = {
-      acne: [
-        { top: '22%', left: '38%', width: '24%', height: '18%' }, // Forehead
-        { top: '42%', left: '48%', width: '14%', height: '12%' }, // Nose
-        { top: '58%', left: '28%', width: '16%', height: '14%' }, // Left cheek
-        { top: '58%', left: '56%', width: '16%', height: '14%' }, // Right cheek
-      ],
-      texture: [
-        { top: '35%', left: '45%', width: '20%', height: '25%' }, // Center face
-        { top: '52%', left: '25%', width: '22%', height: '20%' }, // Left cheek
-        { top: '52%', left: '53%', width: '22%', height: '20%' }, // Right cheek
-      ],
-      redness: [
-        { top: '40%', left: '48%', width: '14%', height: '18%' }, // Nose area
-        { top: '55%', left: '30%', width: '18%', height: '16%' }, // Left cheek
-        { top: '55%', left: '52%', width: '18%', height: '16%' }, // Right cheek
-      ],
-      darkSpots: [
-        { top: '20%', left: '35%', width: '30%', height: '15%' }, // Forehead
-        { top: '60%', left: '32%', width: '14%', height: '12%' }, // Left cheek spot
-        { top: '62%', left: '54%', width: '14%', height: '12%' }, // Right cheek spot
-      ],
-      hydration: [
-        { top: '28%', left: '25%', width: '18%', height: '16%' }, // Left eye area
-        { top: '28%', left: '57%', width: '18%', height: '16%' }, // Right eye area
-        { top: '48%', left: '35%', width: '30%', height: '28%' }, // Central face
-      ],
-      skinScore: [
-        { top: '15%', left: '20%', width: '60%', height: '70%' }, // Entire face oval
-      ],
-    };
-    return overlays[type || 'skinScore'] || [];
+  const renderAcneOverlay = () => {
+    // Acne spots as circular dots
+    const acneSpots = [
+      { top: '20%', left: '42%', size: 12 },
+      { top: '25%', left: '38%', size: 10 },
+      { top: '23%', left: '55%', size: 14 },
+      { top: '28%', left: '48%', size: 8 },
+      { top: '43%', left: '50%', size: 11 },
+      { top: '46%', left: '53%', size: 9 },
+      { top: '58%', left: '32%', size: 13 },
+      { top: '60%', left: '35%', size: 10 },
+      { top: '62%', left: '30%', size: 8 },
+      { top: '59%', left: '60%', size: 12 },
+      { top: '63%', left: '65%', size: 9 },
+      { top: '61%', left: '57%', size: 11 },
+    ];
+
+    return acneSpots.map((spot, index) => (
+      <Animated.View
+        key={index}
+        style={[
+          styles.acneSpot,
+          {
+            top: spot.top,
+            left: spot.left,
+            width: spot.size,
+            height: spot.size,
+            borderRadius: spot.size / 2,
+            opacity: overlayAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, 0.8],
+            }),
+            transform: [
+              {
+                scale: overlayAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 1],
+                }),
+              },
+            ],
+          },
+        ]}>
+        <View style={styles.acneSpotInner} />
+      </Animated.View>
+    ));
+  };
+
+  const renderHydrationOverlay = () => {
+    // Full blue moisture filter with droplet patterns
+    const moistureDroplets = [
+      { top: '30%', left: '28%', size: 16 },
+      { top: '32%', left: '70%', size: 14 },
+      { top: '48%', left: '40%', size: 20 },
+      { top: '50%', left: '58%', size: 18 },
+      { top: '65%', left: '35%', size: 15 },
+      { top: '68%', left: '62%', size: 17 },
+    ];
+
+    return (
+      <>
+        <Animated.View
+          style={[
+            styles.hydrationFullOverlay,
+            {
+              opacity: overlayAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, 0.4],
+              }),
+            },
+          ]}>
+          <LinearGradient
+            colors={['#4299E160', '#63B3ED80', '#4299E160']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+        </Animated.View>
+        {moistureDroplets.map((droplet, index) => (
+          <Animated.View
+            key={index}
+            style={[
+              styles.moistureDroplet,
+              {
+                top: droplet.top,
+                left: droplet.left,
+                width: droplet.size,
+                height: droplet.size,
+                borderRadius: droplet.size / 2,
+                opacity: overlayAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 0.7],
+                }),
+                transform: [
+                  {
+                    scale: overlayAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, 1],
+                    }),
+                  },
+                ],
+              },
+            ]}>
+            <View style={styles.dropletShine} />
+          </Animated.View>
+        ))}
+      </>
+    );
+  };
+
+  const renderTextureOverlay = () => {
+    // Grid pattern showing texture analysis
+    const textureAreas = [
+      { top: '38%', left: '40%', width: '20%', height: '25%' },
+      { top: '52%', left: '25%', width: '22%', height: '20%' },
+      { top: '52%', left: '53%', width: '22%', height: '20%' },
+    ];
+
+    return textureAreas.map((area, areaIndex) => (
+      <Animated.View
+        key={areaIndex}
+        style={[
+          styles.textureArea,
+          {
+            top: area.top,
+            left: area.left,
+            width: area.width,
+            height: area.height,
+            opacity: overlayAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, 0.6],
+            }),
+          },
+        ]}>
+        <View style={styles.textureGrid}>
+          {[...Array(4)].map((_, row) => (
+            <View key={row} style={styles.textureRow}>
+              {[...Array(4)].map((_, col) => (
+                <View key={col} style={styles.textureCell} />
+              ))}
+            </View>
+          ))}
+        </View>
+      </Animated.View>
+    ));
+  };
+
+  const renderRednessOverlay = () => {
+    // Red tinted areas showing redness
+    const rednessAreas = [
+      { top: '40%', left: '48%', width: '14%', height: '18%', intensity: 0.7 },
+      { top: '55%', left: '30%', width: '18%', height: '16%', intensity: 0.6 },
+      { top: '55%', left: '52%', width: '18%', height: '16%', intensity: 0.6 },
+    ];
+
+    return rednessAreas.map((area, index) => (
+      <Animated.View
+        key={index}
+        style={[
+          styles.rednessArea,
+          {
+            top: area.top,
+            left: area.left,
+            width: area.width,
+            height: area.height,
+            opacity: overlayAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, area.intensity],
+            }),
+            transform: [
+              {
+                scale: overlayAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.8, 1],
+                }),
+              },
+            ],
+          },
+        ]}>
+        <LinearGradient
+          colors={['#FC818180', '#F5656580', '#FC818180']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.rednessGradient}
+        />
+      </Animated.View>
+    ));
+  };
+
+  const renderDarkSpotsOverlay = () => {
+    // Circular dark spots with gradients
+    const darkSpots = [
+      { top: '22%', left: '40%', size: 28 },
+      { top: '26%', left: '58%', size: 24 },
+      { top: '30%', left: '35%', size: 20 },
+      { top: '60%', left: '33%', size: 26 },
+      { top: '63%', left: '60%', size: 22 },
+      { top: '55%', left: '48%', size: 18 },
+    ];
+
+    return darkSpots.map((spot, index) => (
+      <Animated.View
+        key={index}
+        style={[
+          styles.darkSpot,
+          {
+            top: spot.top,
+            left: spot.left,
+            width: spot.size,
+            height: spot.size,
+            borderRadius: spot.size / 2,
+            opacity: overlayAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, 0.75],
+            }),
+            transform: [
+              {
+                scale: overlayAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 1],
+                }),
+              },
+            ],
+          },
+        ]}>
+        <LinearGradient
+          colors={['#805AD5', '#553C9A', '#2D3748']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.darkSpotGradient}
+        />
+      </Animated.View>
+    ));
+  };
+
+  const renderSkinScoreOverlay = () => {
+    // Face mesh overlay with scanning grid
+    return (
+      <Animated.View
+        style={[
+          styles.faceOutline,
+          {
+            opacity: overlayAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, 0.8],
+            }),
+          },
+        ]}>
+        <View style={styles.faceOvalBorder} />
+        <View style={styles.scanGridOverlay}>
+          {[...Array(6)].map((_, i) => (
+            <View key={`h-${i}`} style={[styles.scanGridLineH, { top: `${(i + 1) * 14}%` }]} />
+          ))}
+          {[...Array(5)].map((_, i) => (
+            <View key={`v-${i}`} style={[styles.scanGridLineV, { left: `${(i + 1) * 16.6}%` }]} />
+          ))}
+        </View>
+      </Animated.View>
+    );
+  };
+
+  const renderKPIOverlay = (type: KPIType) => {
+    switch (type) {
+      case 'acne':
+        return renderAcneOverlay();
+      case 'hydration':
+        return renderHydrationOverlay();
+      case 'texture':
+        return renderTextureOverlay();
+      case 'redness':
+        return renderRednessOverlay();
+      case 'darkSpots':
+        return renderDarkSpotsOverlay();
+      case 'skinScore':
+        return renderSkinScoreOverlay();
+      default:
+        return null;
+    }
   };
 
   const detectionPoints = [
@@ -234,37 +477,9 @@ export default function AnalysisScreen({
         
         {/* Interactive overlays for selected KPI */}
         {analysis && !isAnalyzing && selectedKPI && (
-          <Animated.View style={[styles.overlayContainer, { opacity: overlayAnim }]}>
+          <View style={styles.overlayContainer}>
             <View style={styles.overlayDarkBg} />
-            {getOverlayAreas(selectedKPI).map((area, index) => (
-              <Animated.View
-                key={index}
-                style={[
-                  styles.overlayArea,
-                  {
-                    top: area.top,
-                    left: area.left,
-                    width: area.width,
-                    height: area.height,
-                    backgroundColor: getKPIConfig(selectedKPI).color + '60',
-                    opacity: overlayAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0, 0.7],
-                    }),
-                    transform: [
-                      {
-                        scale: overlayAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [0.8, 1],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-              >
-                <View style={[styles.overlayBorder, { borderColor: getKPIConfig(selectedKPI).color }]} />
-              </Animated.View>
-            ))}
+            {renderKPIOverlay(selectedKPI)}
             {/* KPI Label on overlay */}
             <Animated.View
               style={[
@@ -291,7 +506,7 @@ export default function AnalysisScreen({
                 <Text style={styles.overlayLabelText}>{getKPIConfig(selectedKPI).label}</Text>
               </BlurView>
             </Animated.View>
-          </Animated.View>
+          </View>
         )}
         
         {isAnalyzing && (
@@ -1150,15 +1365,119 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
   },
-  overlayArea: {
+  // Acne overlay styles
+  acneSpot: {
+    position: 'absolute',
+    backgroundColor: '#F5656590',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#F56565',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 8,
+  },
+  acneSpotInner: {
+    width: '60%',
+    height: '60%',
+    borderRadius: 100,
+    backgroundColor: '#C53030',
+  },
+  // Hydration overlay styles
+  hydrationFullOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  moistureDroplet: {
+    position: 'absolute',
+    backgroundColor: '#63B3ED',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-end',
+    shadowColor: '#4299E1',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.6,
+    shadowRadius: 4,
+  },
+  dropletShine: {
+    width: '35%',
+    height: '35%',
+    borderRadius: 100,
+    backgroundColor: '#FFFFFF60',
+    margin: '10%',
+  },
+  // Texture overlay styles
+  textureArea: {
+    position: 'absolute',
+    backgroundColor: '#9F7AEA40',
+    borderRadius: theme.borderRadius.md,
+  },
+  textureGrid: {
+    flex: 1,
+    padding: 2,
+  },
+  textureRow: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  textureCell: {
+    flex: 1,
+    borderWidth: 0.5,
+    borderColor: '#9F7AEA',
+    margin: 1,
+  },
+  // Redness overlay styles
+  rednessArea: {
     position: 'absolute',
     borderRadius: theme.borderRadius.lg,
     overflow: 'hidden',
   },
-  overlayBorder: {
+  rednessGradient: {
+    flex: 1,
+  },
+  // Dark spots overlay styles
+  darkSpot: {
+    position: 'absolute',
+    overflow: 'hidden',
+    shadowColor: '#805AD5',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.6,
+    shadowRadius: 6,
+  },
+  darkSpotGradient: {
+    flex: 1,
+  },
+  // Skin score overlay styles
+  faceOutline: {
+    position: 'absolute',
+    top: '15%',
+    left: '20%',
+    right: '20%',
+    bottom: '25%',
+  },
+  faceOvalBorder: {
     ...StyleSheet.absoluteFillObject,
-    borderWidth: 2,
-    borderRadius: theme.borderRadius.lg,
+    borderWidth: 3,
+    borderColor: '#7DD3C0',
+    borderRadius: 1000,
+    shadowColor: '#7DD3C0',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+  },
+  scanGridOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  scanGridLineH: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: '#7DD3C080',
+  },
+  scanGridLineV: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 1,
+    backgroundColor: '#7DD3C080',
   },
   overlayLabel: {
     position: 'absolute',
