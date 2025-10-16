@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { theme } from '@/constants/theme';
 import { useSkinCare } from '@/hooks/useSkinCare';
 import { faceAnalysisService } from '@/services/faceAnalysisService';
