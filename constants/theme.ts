@@ -1,40 +1,44 @@
 export const theme = {
   colors: {
-    // Unique gradient palette - Cosmic Aurora
-    primary: '#B794F6', // Mystic Purple
-    primaryLight: '#E9D5FF',
-    primaryDark: '#9F7AEA',
+    // Clean Natural Palette
+    primary: '#7DD3C0', // Soft Mint Green
+    primaryLight: '#A8E6D8',
+    primaryDark: '#5FB6A8',
     
-    secondary: '#60D9FA', // Cyber Blue
-    secondaryLight: '#B8F5FF',
-    tertiary: '#F687B3', // Rose Pink
-    accent: '#FBD38D', // Golden Glow
+    secondary: '#F4A460', // Warm Peach
+    secondaryLight: '#FFD4A8',
+    tertiary: '#D4A5C6', // Soft Lavender
+    accent: '#FFD4A8', // Light Peach Glow
     
-    background: '#0A0E27',
-    backgroundGradientStart: '#1a1033', // Deep Purple-Black
-    backgroundGradientEnd: '#0d1b2a', // Deep Ocean Blue
-    surface: 'rgba(255, 255, 255, 0.08)',
-    surfaceLight: 'rgba(255, 255, 255, 0.12)',
-    surfaceDark: 'rgba(0, 0, 0, 0.3)',
+    background: '#F8F9FA',
+    backgroundGradientStart: '#FFFFFF', // Pure White
+    backgroundGradientEnd: '#F5F7FA', // Light Blue-Gray
+    surface: 'rgba(255, 255, 255, 0.95)',
+    surfaceLight: 'rgba(255, 255, 255, 1)',
+    surfaceDark: 'rgba(0, 0, 0, 0.05)',
     
-    glass: 'rgba(255, 255, 255, 0.08)',
-    glassStrong: 'rgba(255, 255, 255, 0.15)',
-    glassBorder: 'rgba(183, 148, 246, 0.3)',
+    glass: 'rgba(255, 255, 255, 0.7)',
+    glassStrong: 'rgba(255, 255, 255, 0.95)',
+    glassBorder: 'rgba(125, 211, 192, 0.2)',
     
-    text: '#FFFFFF',
-    textSecondary: '#C4C4D9',
-    textLight: '#8B8BA7',
+    text: '#2D3748',
+    textSecondary: '#718096',
+    textLight: '#A0AEC0',
     
-    success: '#68D391',
-    warning: '#F6AD55',
-    error: '#FC8181',
-    info: '#63B3ED',
+    success: '#48BB78',
+    warning: '#ED8936',
+    error: '#F56565',
+    info: '#4299E1',
     
-    border: 'rgba(183, 148, 246, 0.2)',
-    divider: 'rgba(255, 255, 255, 0.08)',
+    border: 'rgba(226, 232, 240, 0.8)',
+    divider: 'rgba(0, 0, 0, 0.05)',
     
-    overlay: 'rgba(10, 14, 39, 0.85)',
-    shimmer: 'rgba(183, 148, 246, 0.5)',
+    overlay: 'rgba(0, 0, 0, 0.4)',
+    shimmer: 'rgba(125, 211, 192, 0.3)',
+    
+    // Additional clean colors
+    cardBg: '#FFFFFF',
+    cardShadow: 'rgba(0, 0, 0, 0.08)',
   },
   
   spacing: {

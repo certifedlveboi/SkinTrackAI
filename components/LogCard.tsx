@@ -2,7 +2,6 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
 import { MaterialIcons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
 import { theme } from '@/constants/theme';
 import { SkinLog } from '@/services/skinCareService';
 
@@ -12,10 +11,10 @@ interface LogCardProps {
 }
 
 const conditionConfig = {
-  excellent: { color: '#70D6A3', icon: 'sentiment-very-satisfied', label: 'Excellent' },
-  good: { color: '#A8D5FF', icon: 'sentiment-satisfied', label: 'Good' },
-  fair: { color: '#FFB84D', icon: 'sentiment-neutral', label: 'Fair' },
-  poor: { color: '#FF6B6B', icon: 'sentiment-dissatisfied', label: 'Poor' },
+  excellent: { color: '#48BB78', icon: 'sentiment-very-satisfied', label: 'Excellent' },
+  good: { color: '#7DD3C0', icon: 'sentiment-satisfied', label: 'Good' },
+  fair: { color: '#ED8936', icon: 'sentiment-neutral', label: 'Fair' },
+  poor: { color: '#F56565', icon: 'sentiment-dissatisfied', label: 'Poor' },
 };
 
 export default function LogCard({ log, onPress }: LogCardProps) {
@@ -31,7 +30,7 @@ export default function LogCard({ log, onPress }: LogCardProps) {
     >
       <Image source={{ uri: log.photoUri }} style={styles.photo} contentFit="cover" />
       
-      <BlurView intensity={60} style={styles.overlay}>
+      <View style={styles.overlay}>
         <View style={styles.header}>
           <View style={styles.dateContainer}>
             <Text style={styles.date}>
@@ -41,7 +40,7 @@ export default function LogCard({ log, onPress }: LogCardProps) {
               {logDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
             </Text>
           </View>
-          <View style={[styles.conditionBadge, { backgroundColor: config.color + '30' }]}>
+          <View style={[styles.conditionBadge, { backgroundColor: config.color + '20' }]}>
             <MaterialIcons name={config.icon as any} size={20} color={config.color} />
             <Text style={[styles.conditionText, { color: config.color }]}>
               {config.label}
@@ -63,24 +62,23 @@ export default function LogCard({ log, onPress }: LogCardProps) {
             ))}
           </View>
         )}
-      </BlurView>
+      </View>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: theme.borderRadius.xl,
+    borderRadius: theme.borderRadius.lg,
     marginBottom: theme.spacing.md,
-    borderWidth: 2,
-    borderColor: theme.colors.glassBorder,
     overflow: 'hidden',
     height: 240,
-    shadowColor: theme.colors.primary,
+    backgroundColor: theme.colors.cardBg,
+    shadowColor: theme.colors.cardShadow,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 1,
     shadowRadius: 8,
-    elevation: 8,
+    elevation: 4,
   },
   photo: {
     position: 'absolute',
@@ -95,7 +93,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     padding: theme.spacing.md,
     justifyContent: 'space-between',
-    overflow: 'hidden',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
   },
   header: {
     flexDirection: 'row',
@@ -109,12 +107,12 @@ const styles = StyleSheet.create({
   date: {
     fontSize: theme.fontSize.md,
     fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.text,
+    color: '#FFFFFF',
     marginBottom: 2,
   },
   time: {
     fontSize: theme.fontSize.xs,
-    color: theme.colors.textLight,
+    color: 'rgba(255, 255, 255, 0.7)',
   },
   conditionBadge: {
     flexDirection: 'row',
@@ -123,6 +121,7 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.xs,
     borderRadius: theme.borderRadius.sm,
     gap: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
   },
   conditionText: {
     fontSize: theme.fontSize.sm,
@@ -135,16 +134,14 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.sm,
   },
   concernTag: {
-    backgroundColor: theme.colors.glass,
-    borderWidth: 1,
-    borderColor: theme.colors.glassBorder,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: 4,
     borderRadius: theme.borderRadius.sm,
   },
   concernText: {
     fontSize: theme.fontSize.xs,
-    color: theme.colors.text,
+    color: '#FFFFFF',
     fontWeight: theme.fontWeight.medium,
   },
   scoreContainer: {
@@ -154,10 +151,11 @@ const styles = StyleSheet.create({
   },
   scoreLabel: {
     fontSize: theme.fontSize.sm,
-    color: theme.colors.textSecondary,
+    color: 'rgba(255, 255, 255, 0.8)',
   },
   scoreValue: {
     fontSize: theme.fontSize.xxl,
     fontWeight: theme.fontWeight.bold,
+    color: '#FFFFFF',
   },
 });
