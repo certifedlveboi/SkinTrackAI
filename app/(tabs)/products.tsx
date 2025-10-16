@@ -38,6 +38,18 @@ export default function ProductsScreen() {
   const [category, setCategory] = useState<Product['category']>('moisturizer');
   const [notes, setNotes] = useState('');
 
+  const productsByCategory = React.useMemo(() => {
+    const active = products.filter(p => p.isActive);
+    const grouped: Record<string, typeof products> = {};
+    active.forEach(product => {
+      if (!grouped[product.category]) {
+        grouped[product.category] = [];
+      }
+      grouped[product.category].push(product);
+    });
+    return grouped;
+  }, [products]);
+
   const activeProducts = products.filter(p => p.isActive);
   const inactiveProducts = products.filter(p => !p.isActive);
 
@@ -73,17 +85,27 @@ export default function ProductsScreen() {
       style={[styles.container, { paddingTop: insets.top }]}
     >
       <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Products</Text>
-          <Text style={styles.subtitle}>
-            {activeProducts.length} active products
-          </Text>
+        <View style={styles.headerContent}>
+          <MaterialIcons name="inventory-2" size={32} color={theme.colors.tertiary} />
+          <View style={styles.headerText}>
+            <Text style={styles.title}>My Products</Text>
+            <Text style={styles.subtitle}>
+              {activeProducts.length} active • {inactiveProducts.length} archived
+            </Text>
+          </View>
         </View>
         <TouchableOpacity
           style={styles.addButton}
           onPress={() => setModalVisible(true)}
         >
-          <MaterialIcons name="add" size={24} color={theme.colors.surface} />
+          <LinearGradient
+            colors={[theme.colors.primary, theme.colors.secondary]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.addButtonGradient}
+          >
+            <MaterialIcons name="add" size={24} color={theme.colors.text} />
+          </LinearGradient>
         </TouchableOpacity>
       </View>
 
@@ -92,22 +114,72 @@ export default function ProductsScreen() {
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
-        {activeProducts.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Active Products</Text>
-            {activeProducts.map(product => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                onToggleActive={() => handleToggleActive(product)}
-              />
-            ))}
-          </View>
+        {activeProducts.length > 0 ? (
+          <>
+            {/* Active Products by Category */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Active Routine</Text>
+                <BlurView intensity={20} style={styles.countBadge}>
+                  <Text style={styles.countText}>{activeProducts.length}</Text>
+                </BlurView>
+              </View>
+              {Object.entries(productsByCategory).map(([category, categoryProducts]) => (
+                <View key={category} style={styles.categoryGroup}>
+                  <View style={styles.categoryHeader}>
+                    <MaterialIcons 
+                      name="label" 
+                      size={16} 
+                      color={theme.colors.primary} 
+                    />
+                    <Text style={styles.categoryTitle}>{category.toUpperCase()}</Text>
+                    <View style={styles.categoryLine} />
+                  </View>
+                  {categoryProducts.map(product => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      onToggleActive={() => handleToggleActive(product)}
+                    />
+                  ))}
+                </View>
+              ))}
+            </View>
+          </>
+        ) : (
+          <BlurView intensity={20} style={styles.emptyCard}>
+            <View style={styles.emptyIconContainer}>
+              <MaterialIcons name="inventory-2" size={48} color={theme.colors.tertiary} />
+            </View>
+            <Text style={styles.emptyTitle}>No Products Added</Text>
+            <Text style={styles.emptySubtitle}>
+              Start building your skincare routine by adding the products you use daily.
+            </Text>
+            <TouchableOpacity 
+              style={styles.emptyButton}
+              onPress={() => setModalVisible(true)}
+            >
+              <LinearGradient
+                colors={[theme.colors.primary, theme.colors.secondary]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.emptyButtonGradient}
+              >
+                <MaterialIcons name="add" size={20} color={theme.colors.text} />
+                <Text style={styles.emptyButtonText}>Add First Product</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </BlurView>
         )}
 
         {inactiveProducts.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Inactive Products</Text>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Archived</Text>
+              <BlurView intensity={20} style={styles.countBadge}>
+                <Text style={styles.countText}>{inactiveProducts.length}</Text>
+              </BlurView>
+            </View>
             {inactiveProducts.map(product => (
               <ProductCard
                 key={product.id}
@@ -115,16 +187,6 @@ export default function ProductsScreen() {
                 onToggleActive={() => handleToggleActive(product)}
               />
             ))}
-          </View>
-        )}
-
-        {products.length === 0 && (
-          <View style={styles.emptyState}>
-            <MaterialIcons name="inventory-2" size={64} color={theme.colors.textLight} />
-            <Text style={styles.emptyTitle}>No Products Yet</Text>
-            <Text style={styles.emptySubtitle}>
-              Start tracking your skincare routine
-            </Text>
           </View>
         )}
       </ScrollView>
@@ -228,27 +290,38 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
+    paddingVertical: theme.spacing.lg,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+    flex: 1,
+  },
+  headerText: {
+    flex: 1,
   },
   title: {
-    fontSize: theme.fontSize.xxl,
+    fontSize: 28,
     fontWeight: theme.fontWeight.bold,
     color: theme.colors.text,
     marginBottom: 4,
   },
   subtitle: {
-    fontSize: theme.fontSize.md,
+    fontSize: theme.fontSize.sm,
     color: theme.colors.textSecondary,
   },
   addButton: {
-    backgroundColor: theme.colors.primary,
     width: 48,
     height: 48,
     borderRadius: 24,
+    overflow: 'hidden',
+  },
+  addButtonGradient: {
+    width: '100%',
+    height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.glassBorder,
   },
   content: {
     flex: 1,
@@ -259,27 +332,101 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: theme.spacing.xl,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: theme.spacing.lg,
+    paddingHorizontal: 4,
+  },
   sectionTitle: {
     fontSize: theme.fontSize.lg,
     fontWeight: theme.fontWeight.bold,
     color: theme.colors.text,
+  },
+  countBadge: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: 6,
+    backgroundColor: theme.colors.glass,
+    borderRadius: theme.borderRadius.round,
+    borderWidth: 1,
+    borderColor: theme.colors.glassBorder,
+    minWidth: 36,
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  countText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: theme.fontWeight.bold,
+    color: theme.colors.primary,
+  },
+  categoryGroup: {
+    marginBottom: theme.spacing.lg,
+  },
+  categoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
     marginBottom: theme.spacing.md,
   },
-  emptyState: {
+  categoryTitle: {
+    fontSize: theme.fontSize.xs,
+    fontWeight: theme.fontWeight.bold,
+    color: theme.colors.primary,
+    letterSpacing: 1,
+  },
+  categoryLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: theme.colors.divider,
+  },
+  emptyCard: {
+    backgroundColor: theme.colors.glass,
+    borderRadius: theme.borderRadius.xl,
+    padding: theme.spacing.xl,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.glassBorder,
+    overflow: 'hidden',
+  },
+  emptyIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: theme.colors.tertiary + '30',
     justifyContent: 'center',
-    paddingVertical: theme.spacing.xxl,
+    alignItems: 'center',
+    marginBottom: theme.spacing.lg,
   },
   emptyTitle: {
-    fontSize: theme.fontSize.lg,
-    fontWeight: theme.fontWeight.semibold,
+    fontSize: theme.fontSize.xl,
+    fontWeight: theme.fontWeight.bold,
     color: theme.colors.text,
-    marginTop: theme.spacing.lg,
+    marginBottom: theme.spacing.sm,
+    textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: theme.fontSize.md,
     color: theme.colors.textSecondary,
-    marginTop: theme.spacing.xs,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: theme.spacing.lg,
+  },
+  emptyButton: {
+    borderRadius: theme.borderRadius.md,
+    overflow: 'hidden',
+  },
+  emptyButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+  },
+  emptyButtonText: {
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.colors.text,
   },
   modalContainer: {
     flex: 1,

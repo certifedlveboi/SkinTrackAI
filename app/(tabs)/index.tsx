@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,13 @@ import CameraScreen from '@/components/CameraScreen';
 import AnalysisScreen from '@/components/AnalysisScreen';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good Morning';
+  if (hour < 17) return 'Good Afternoon';
+  return 'Good Evening';
+}
+
 export default function TodayScreen() {
   const insets = useSafeAreaInsets();
   const { logs, addLog } = useSkinCare();
@@ -25,11 +32,34 @@ export default function TodayScreen() {
   const [analysis, setAnalysis] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  const todayLog = logs.find(log => {
-    const logDate = new Date(log.date);
+  const todayLogs = useMemo(() => {
     const today = new Date();
-    return logDate.toDateString() === today.toDateString();
-  });
+    return logs.filter(log => {
+      const logDate = new Date(log.date);
+      return logDate.toDateString() === today.toDateString();
+    });
+  }, [logs]);
+
+  const recentLogs = useMemo(() => {
+    return logs.filter(log => {
+      const logDate = new Date(log.date);
+      const today = new Date();
+      return logDate.toDateString() !== today.toDateString();
+    }).slice(0, 5);
+  }, [logs]);
+
+  const weekStats = useMemo(() => {
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const weekLogs = logs.filter(log => new Date(log.date) >= weekAgo);
+    const avgScore = weekLogs.length > 0
+      ? Math.round(weekLogs.reduce((sum, log) => sum + log.skinScore, 0) / weekLogs.length)
+      : 0;
+    return {
+      count: weekLogs.length,
+      avgScore,
+    };
+  }, [logs]);
 
   const handleCapture = async (uri: string) => {
     setCameraVisible(false);
@@ -94,12 +124,17 @@ export default function TodayScreen() {
       style={[styles.container, { paddingTop: insets.top }]}
     >
       <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>Good day!</Text>
-          <Text style={styles.subtitle}>Track your skin journey</Text>
+        <View style={styles.headerLeft}>
+          <Text style={styles.greeting}>{getGreeting()}</Text>
+          <Text style={styles.subtitle}>Your skin journey</Text>
         </View>
-        <View style={styles.logoContainer}>
-          <MaterialIcons name="spa" size={32} color={theme.colors.primary} />
+        <View style={styles.headerRight}>
+          {weekStats.count > 0 && (
+            <BlurView intensity={20} style={styles.weekBadge}>
+              <MaterialIcons name="local-fire-department" size={18} color={theme.colors.warning} />
+              <Text style={styles.weekBadgeText}>{weekStats.count} this week</Text>
+            </BlurView>
+          )}
         </View>
       </View>
 
@@ -108,73 +143,123 @@ export default function TodayScreen() {
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
-        {todayLog ? (
-          <View style={styles.todaySection}>
-            <Text style={styles.sectionTitle}>Today&apos;s Analysis</Text>
-            <LogCard log={todayLog} />
-            <BlurView intensity={20} style={styles.completedCard}>
-              <MaterialIcons name="check-circle" size={24} color={theme.colors.success} />
-              <Text style={styles.completedText}>
-                You have tracked your skin today
-              </Text>
-            </BlurView>
-            
-            <TouchableOpacity 
-              style={styles.scanAgainButton}
-              onPress={() => setCameraVisible(true)}
-              activeOpacity={0.8}
-            >
-              <BlurView intensity={30} style={styles.scanAgainBlur}>
-                <MaterialIcons name="camera-alt" size={24} color={theme.colors.primary} />
-                <View style={styles.scanAgainTextContainer}>
-                  <Text style={styles.scanAgainTitle}>Scan Again</Text>
-                  <Text style={styles.scanAgainSubtitle}>Track another analysis today</Text>
-                </View>
-                <MaterialIcons name="arrow-forward" size={24} color={theme.colors.textLight} />
-              </BlurView>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <TouchableOpacity 
-            style={styles.scanButtonContainer}
-            onPress={() => setCameraVisible(true)}
-            activeOpacity={0.9}
-          >
-            <BlurView intensity={20} style={styles.scanButton}>
-              <View style={styles.scanIconContainer}>
-                <MaterialIcons name="camera-alt" size={48} color={theme.colors.primary} />
-              </View>
-              <Text style={styles.scanTitle}>Take a Selfie</Text>
-              <Text style={styles.scanSubtitle}>
-                AI will analyze your skin in seconds
-              </Text>
-              <View style={styles.scanFeatures}>
-                <View style={styles.featureItem}>
-                  <MaterialIcons name="auto-awesome" size={16} color={theme.colors.secondary} />
-                  <Text style={styles.featureText}>AI Analysis</Text>
-                </View>
-                <View style={styles.featureItem}>
-                  <MaterialIcons name="face" size={16} color={theme.colors.secondary} />
-                  <Text style={styles.featureText}>Skin Detection</Text>
-                </View>
-                <View style={styles.featureItem}>
-                  <MaterialIcons name="insights" size={16} color={theme.colors.secondary} />
-                  <Text style={styles.featureText}>Insights</Text>
-                </View>
-              </View>
-            </BlurView>
-          </TouchableOpacity>
-        )}
-
+        {/* Quick Stats */}
         {logs.length > 0 && (
-          <View style={styles.historySection}>
-            <View style={styles.historySectionHeader}>
-              <Text style={styles.sectionTitle}>History</Text>
-              <BlurView intensity={20} style={styles.countBadge}>
-                <Text style={styles.countText}>{logs.length}</Text>
+          <View style={styles.quickStats}>
+            <View style={styles.statItem}>
+              <BlurView intensity={20} style={styles.statBlur}>
+                <MaterialIcons name="calendar-today" size={24} color={theme.colors.secondary} />
+                <View style={styles.statTextContainer}>
+                  <Text style={styles.statValue}>{logs.length}</Text>
+                  <Text style={styles.statLabel}>Total Scans</Text>
+                </View>
               </BlurView>
             </View>
-            {logs.slice(0, 10).map(log => (
+            <View style={styles.statItem}>
+              <BlurView intensity={20} style={styles.statBlur}>
+                <MaterialIcons name="trending-up" size={24} color={theme.colors.success} />
+                <View style={styles.statTextContainer}>
+                  <Text style={styles.statValue}>{weekStats.avgScore || '--'}</Text>
+                  <Text style={styles.statLabel}>Avg Score</Text>
+                </View>
+              </BlurView>
+            </View>
+          </View>
+        )}
+
+        {/* Main Action Section */}
+        <View style={styles.mainSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Skin Analysis</Text>
+            <MaterialIcons name="auto-awesome" size={20} color={theme.colors.primary} />
+          </View>
+          
+          {todayLogs.length > 0 ? (
+            <>
+              {todayLogs.map((log, index) => (
+                <View key={log.id} style={styles.todayLogContainer}>
+                  {index === 0 && (
+                    <BlurView intensity={20} style={styles.todayBadge}>
+                      <MaterialIcons name="check-circle" size={16} color={theme.colors.success} />
+                      <Text style={styles.todayBadgeText}>Latest Analysis</Text>
+                    </BlurView>
+                  )}
+                  <LogCard log={log} />
+                </View>
+              ))}
+              
+              <TouchableOpacity 
+                style={styles.scanAgainButton}
+                onPress={() => setCameraVisible(true)}
+                activeOpacity={0.8}
+              >
+                <BlurView intensity={30} style={styles.scanAgainBlur}>
+                  <MaterialIcons name="add-a-photo" size={24} color={theme.colors.primary} />
+                  <View style={styles.scanAgainTextContainer}>
+                    <Text style={styles.scanAgainTitle}>New Scan</Text>
+                    <Text style={styles.scanAgainSubtitle}>Capture another analysis</Text>
+                  </View>
+                  <MaterialIcons name="arrow-forward" size={20} color={theme.colors.textLight} />
+                </BlurView>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <TouchableOpacity 
+              style={styles.scanButtonContainer}
+              onPress={() => setCameraVisible(true)}
+              activeOpacity={0.9}
+            >
+              <LinearGradient
+                colors={[theme.colors.primary + '30', theme.colors.secondary + '30']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.scanButtonGradient}
+              >
+                <BlurView intensity={40} style={styles.scanButton}>
+                  <View style={styles.scanIconContainer}>
+                    <LinearGradient
+                      colors={[theme.colors.primary, theme.colors.secondary]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.scanIconGradient}
+                    >
+                      <MaterialIcons name="camera-alt" size={48} color={theme.colors.text} />
+                    </LinearGradient>
+                  </View>
+                  <Text style={styles.scanTitle}>Start Your First Scan</Text>
+                  <Text style={styles.scanSubtitle}>
+                    AI-powered skin analysis in seconds
+                  </Text>
+                  <View style={styles.scanFeatures}>
+                    <View style={styles.featureItem}>
+                      <MaterialIcons name="check" size={16} color={theme.colors.success} />
+                      <Text style={styles.featureText}>Instant Results</Text>
+                    </View>
+                    <View style={styles.featureItem}>
+                      <MaterialIcons name="check" size={16} color={theme.colors.success} />
+                      <Text style={styles.featureText}>Track Progress</Text>
+                    </View>
+                    <View style={styles.featureItem}>
+                      <MaterialIcons name="check" size={16} color={theme.colors.success} />
+                      <Text style={styles.featureText}>Get Insights</Text>
+                    </View>
+                  </View>
+                </BlurView>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Recent History */}
+        {recentLogs.length > 0 && (
+          <View style={styles.historySection}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Recent History</Text>
+              <BlurView intensity={20} style={styles.countBadge}>
+                <Text style={styles.countText}>{logs.length - todayLogs.length}</Text>
+              </BlurView>
+            </View>
+            {recentLogs.map(log => (
               <LogCard key={log.id} log={log} />
             ))}
           </View>
@@ -199,10 +284,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
+    paddingVertical: theme.spacing.lg,
+  },
+  headerLeft: {
+    flex: 1,
+  },
+  headerRight: {
+    marginLeft: theme.spacing.md,
   },
   greeting: {
-    fontSize: theme.fontSize.xxl,
+    fontSize: 28,
     fontWeight: theme.fontWeight.bold,
     color: theme.colors.text,
     marginBottom: 4,
@@ -211,15 +302,22 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.md,
     color: theme.colors.textSecondary,
   },
-  logoContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+  weekBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.round,
     backgroundColor: theme.colors.glass,
     borderWidth: 1,
     borderColor: theme.colors.glassBorder,
-    justifyContent: 'center',
-    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  weekBadgeText: {
+    fontSize: theme.fontSize.xs,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.colors.text,
   },
   content: {
     flex: 1,
@@ -227,121 +325,160 @@ const styles = StyleSheet.create({
   contentContainer: {
     padding: theme.spacing.lg,
   },
-  todaySection: {
+  quickStats: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
     marginBottom: theme.spacing.xl,
+  },
+  statItem: {
+    flex: 1,
+    borderRadius: theme.borderRadius.lg,
+    overflow: 'hidden',
+  },
+  statBlur: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    padding: theme.spacing.md,
+    backgroundColor: theme.colors.glass,
+    borderWidth: 1,
+    borderColor: theme.colors.glassBorder,
+    overflow: 'hidden',
+  },
+  statTextContainer: {
+    flex: 1,
+  },
+  statValue: {
+    fontSize: theme.fontSize.xl,
+    fontWeight: theme.fontWeight.bold,
+    color: theme.colors.text,
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+  },
+  mainSection: {
+    marginBottom: theme.spacing.xl,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: theme.spacing.md,
+    paddingHorizontal: 4,
   },
   sectionTitle: {
     fontSize: theme.fontSize.lg,
     fontWeight: theme.fontWeight.bold,
     color: theme.colors.text,
+  },
+  todayLogContainer: {
     marginBottom: theme.spacing.md,
   },
-  completedCard: {
+  todayBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.sm,
-    backgroundColor: theme.colors.glass,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.md,
-    marginTop: theme.spacing.md,
+    gap: 6,
+    alignSelf: 'flex-start',
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 4,
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: theme.colors.success + '30',
     borderWidth: 1,
-    borderColor: theme.colors.glassBorder,
+    borderColor: theme.colors.success + '50',
+    marginBottom: theme.spacing.sm,
     overflow: 'hidden',
   },
-  completedText: {
-    flex: 1,
-    color: theme.colors.text,
-    fontSize: theme.fontSize.sm,
-    fontWeight: theme.fontWeight.medium,
+  todayBadgeText: {
+    fontSize: theme.fontSize.xs,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.colors.success,
   },
   scanButtonContainer: {
-    marginBottom: theme.spacing.xl,
+    marginBottom: theme.spacing.lg,
+  },
+  scanButtonGradient: {
+    borderRadius: theme.borderRadius.xl,
+    padding: 2,
   },
   scanButton: {
     backgroundColor: theme.colors.glass,
     borderRadius: theme.borderRadius.xl,
     padding: theme.spacing.xl,
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: theme.colors.primary,
     overflow: 'hidden',
   },
   scanIconContainer: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: theme.colors.primary + '30',
+    marginBottom: theme.spacing.lg,
+  },
+  scanIconGradient: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: theme.spacing.md,
   },
   scanTitle: {
-    fontSize: theme.fontSize.xl,
+    fontSize: 22,
     fontWeight: theme.fontWeight.bold,
     color: theme.colors.text,
-    marginBottom: theme.spacing.xs,
+    marginBottom: theme.spacing.sm,
+    textAlign: 'center',
   },
   scanSubtitle: {
     fontSize: theme.fontSize.md,
     color: theme.colors.textSecondary,
-    marginBottom: theme.spacing.lg,
+    marginBottom: theme.spacing.xl,
+    textAlign: 'center',
   },
   scanFeatures: {
-    flexDirection: 'row',
-    gap: theme.spacing.md,
-    flexWrap: 'wrap',
-    justifyContent: 'center',
+    alignSelf: 'stretch',
+    gap: theme.spacing.sm,
   },
   featureItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 4,
-    backgroundColor: theme.colors.glass,
-    borderRadius: theme.borderRadius.sm,
+    gap: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
   },
   featureText: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textSecondary,
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textLight,
+    fontWeight: theme.fontWeight.medium,
   },
   historySection: {
-    marginTop: theme.spacing.md,
-  },
-  historySectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: theme.spacing.md,
+    marginBottom: theme.spacing.xl,
   },
   countBadge: {
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 4,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: 6,
     backgroundColor: theme.colors.glass,
     borderRadius: theme.borderRadius.round,
     borderWidth: 1,
     borderColor: theme.colors.glassBorder,
-    minWidth: 32,
+    minWidth: 36,
     alignItems: 'center',
     overflow: 'hidden',
   },
   countText: {
     fontSize: theme.fontSize.sm,
     fontWeight: theme.fontWeight.bold,
-    color: theme.colors.text,
+    color: theme.colors.primary,
   },
   scanAgainButton: {
-    marginTop: theme.spacing.lg,
+    marginTop: theme.spacing.md,
     borderRadius: theme.borderRadius.lg,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: theme.colors.glassBorder,
+    borderColor: theme.colors.primary + '50',
   },
   scanAgainBlur: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: theme.spacing.md,
     gap: theme.spacing.md,
+    backgroundColor: theme.colors.primary + '20',
     overflow: 'hidden',
   },
   scanAgainTextContainer: {
@@ -351,10 +488,10 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.md,
     fontWeight: theme.fontWeight.bold,
     color: theme.colors.text,
-    marginBottom: 2,
+    marginBottom: 4,
   },
   scanAgainSubtitle: {
     fontSize: theme.fontSize.sm,
-    color: theme.colors.textSecondary,
+    color: theme.colors.textLight,
   },
 });
