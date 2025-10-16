@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -25,6 +25,8 @@ interface AnalysisScreenProps {
   onRetake: () => void;
 }
 
+type KPIType = 'skinScore' | 'acne' | 'texture' | 'redness' | 'darkSpots' | 'hydration' | null;
+
 export default function AnalysisScreen({
   photoUri,
   analysis,
@@ -38,6 +40,9 @@ export default function AnalysisScreen({
   const pointAnims = useRef([...Array(12)].map(() => new Animated.Value(0))).current;
   const gridAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const overlayAnim = useRef(new Animated.Value(0)).current;
+  
+  const [selectedKPI, setSelectedKPI] = useState<KPIType>(null);
 
   useEffect(() => {
     if (isAnalyzing) {
@@ -136,6 +141,73 @@ export default function AnalysisScreen({
     outputRange: [0, height * 0.5],
   });
 
+  const handleKPIPress = (kpi: KPIType) => {
+    if (selectedKPI === kpi) {
+      // Deselect if already selected
+      Animated.timing(overlayAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start(() => setSelectedKPI(null));
+    } else {
+      // Select new KPI
+      setSelectedKPI(kpi);
+      Animated.timing(overlayAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }).start();
+    }
+  };
+
+  const getKPIConfig = (type: string) => {
+    const configs: Record<string, { color: string; icon: string; label: string }> = {
+      skinScore: { color: '#7DD3C0', icon: 'stars', label: 'Overall' },
+      acne: { color: '#F56565', icon: 'warning', label: 'Acne' },
+      texture: { color: '#9F7AEA', icon: 'grain', label: 'Texture' },
+      redness: { color: '#FC8181', icon: 'local-fire-department', label: 'Redness' },
+      darkSpots: { color: '#805AD5', icon: 'brightness-3', label: 'Spots' },
+      hydration: { color: '#4299E1', icon: 'opacity', label: 'Hydration' },
+    };
+    return configs[type] || configs.skinScore;
+  };
+
+  const getOverlayAreas = (type: KPIType) => {
+    // Define overlay positions for each KPI type
+    const overlays: Record<string, Array<{ top: string; left: string; width: string; height: string }>> = {
+      acne: [
+        { top: '22%', left: '38%', width: '24%', height: '18%' }, // Forehead
+        { top: '42%', left: '48%', width: '14%', height: '12%' }, // Nose
+        { top: '58%', left: '28%', width: '16%', height: '14%' }, // Left cheek
+        { top: '58%', left: '56%', width: '16%', height: '14%' }, // Right cheek
+      ],
+      texture: [
+        { top: '35%', left: '45%', width: '20%', height: '25%' }, // Center face
+        { top: '52%', left: '25%', width: '22%', height: '20%' }, // Left cheek
+        { top: '52%', left: '53%', width: '22%', height: '20%' }, // Right cheek
+      ],
+      redness: [
+        { top: '40%', left: '48%', width: '14%', height: '18%' }, // Nose area
+        { top: '55%', left: '30%', width: '18%', height: '16%' }, // Left cheek
+        { top: '55%', left: '52%', width: '18%', height: '16%' }, // Right cheek
+      ],
+      darkSpots: [
+        { top: '20%', left: '35%', width: '30%', height: '15%' }, // Forehead
+        { top: '60%', left: '32%', width: '14%', height: '12%' }, // Left cheek spot
+        { top: '62%', left: '54%', width: '14%', height: '12%' }, // Right cheek spot
+      ],
+      hydration: [
+        { top: '28%', left: '25%', width: '18%', height: '16%' }, // Left eye area
+        { top: '28%', left: '57%', width: '18%', height: '16%' }, // Right eye area
+        { top: '48%', left: '35%', width: '30%', height: '28%' }, // Central face
+      ],
+      skinScore: [
+        { top: '15%', left: '20%', width: '60%', height: '70%' }, // Entire face oval
+      ],
+    };
+    return overlays[type || 'skinScore'] || [];
+  };
+
   const detectionPoints = [
     { top: '15%', left: '35%' },
     { top: '15%', right: '35%' },
@@ -159,6 +231,68 @@ export default function AnalysisScreen({
       {/* Photo with advanced scanning overlay */}
       <View style={styles.photoContainer}>
         <Image source={{ uri: photoUri }} style={styles.photo} contentFit="cover" />
+        
+        {/* Interactive overlays for selected KPI */}
+        {analysis && !isAnalyzing && selectedKPI && (
+          <Animated.View style={[styles.overlayContainer, { opacity: overlayAnim }]}>
+            <View style={styles.overlayDarkBg} />
+            {getOverlayAreas(selectedKPI).map((area, index) => (
+              <Animated.View
+                key={index}
+                style={[
+                  styles.overlayArea,
+                  {
+                    top: area.top,
+                    left: area.left,
+                    width: area.width,
+                    height: area.height,
+                    backgroundColor: getKPIConfig(selectedKPI).color + '60',
+                    opacity: overlayAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, 0.7],
+                    }),
+                    transform: [
+                      {
+                        scale: overlayAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0.8, 1],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              >
+                <View style={[styles.overlayBorder, { borderColor: getKPIConfig(selectedKPI).color }]} />
+              </Animated.View>
+            ))}
+            {/* KPI Label on overlay */}
+            <Animated.View
+              style={[
+                styles.overlayLabel,
+                {
+                  opacity: overlayAnim,
+                  transform: [
+                    {
+                      translateY: overlayAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [-20, 0],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              <BlurView intensity={30} style={styles.overlayLabelBlur}>
+                <MaterialIcons
+                  name={getKPIConfig(selectedKPI).icon as any}
+                  size={20}
+                  color={getKPIConfig(selectedKPI).color}
+                />
+                <Text style={styles.overlayLabelText}>{getKPIConfig(selectedKPI).label}</Text>
+              </BlurView>
+            </Animated.View>
+          </Animated.View>
+        )}
         
         {isAnalyzing && (
           <>
@@ -230,6 +364,173 @@ export default function AnalysisScreen({
               </View>
             </BlurView>
           </>
+        )}
+        
+        {/* KPI Buttons at bottom of photo */}
+        {analysis && !isAnalyzing && (
+          <View style={styles.kpiButtonsContainer}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.kpiScrollContent}
+            >
+              {/* Skin Score KPI */}
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => handleKPIPress('skinScore')}
+                style={[
+                  styles.kpiButton,
+                  selectedKPI === 'skinScore' && styles.kpiButtonActive,
+                ]}
+              >
+                <BlurView intensity={40} style={styles.kpiButtonBlur}>
+                  <View style={[
+                    styles.kpiIconContainer,
+                    { backgroundColor: getKPIConfig('skinScore').color + '30' },
+                    selectedKPI === 'skinScore' && styles.kpiIconActive,
+                  ]}>
+                    <MaterialIcons
+                      name={getKPIConfig('skinScore').icon as any}
+                      size={24}
+                      color={getKPIConfig('skinScore').color}
+                    />
+                  </View>
+                  <Text style={styles.kpiValue}>{analysis.skinScore}</Text>
+                  <Text style={styles.kpiLabel}>Overall</Text>
+                </BlurView>
+              </TouchableOpacity>
+
+              {/* Acne KPI */}
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => handleKPIPress('acne')}
+                style={[
+                  styles.kpiButton,
+                  selectedKPI === 'acne' && styles.kpiButtonActive,
+                ]}
+              >
+                <BlurView intensity={40} style={styles.kpiButtonBlur}>
+                  <View style={[
+                    styles.kpiIconContainer,
+                    { backgroundColor: getKPIConfig('acne').color + '30' },
+                    selectedKPI === 'acne' && styles.kpiIconActive,
+                  ]}>
+                    <MaterialIcons
+                      name={getKPIConfig('acne').icon as any}
+                      size={24}
+                      color={getKPIConfig('acne').color}
+                    />
+                  </View>
+                  <Text style={styles.kpiValue}>{Math.round(analysis.detectedFeatures.acne)}</Text>
+                  <Text style={styles.kpiLabel}>Acne</Text>
+                </BlurView>
+              </TouchableOpacity>
+
+              {/* Texture KPI */}
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => handleKPIPress('texture')}
+                style={[
+                  styles.kpiButton,
+                  selectedKPI === 'texture' && styles.kpiButtonActive,
+                ]}
+              >
+                <BlurView intensity={40} style={styles.kpiButtonBlur}>
+                  <View style={[
+                    styles.kpiIconContainer,
+                    { backgroundColor: getKPIConfig('texture').color + '30' },
+                    selectedKPI === 'texture' && styles.kpiIconActive,
+                  ]}>
+                    <MaterialIcons
+                      name={getKPIConfig('texture').icon as any}
+                      size={24}
+                      color={getKPIConfig('texture').color}
+                    />
+                  </View>
+                  <Text style={styles.kpiValue}>{Math.round(analysis.detectedFeatures.texture)}</Text>
+                  <Text style={styles.kpiLabel}>Texture</Text>
+                </BlurView>
+              </TouchableOpacity>
+
+              {/* Redness KPI */}
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => handleKPIPress('redness')}
+                style={[
+                  styles.kpiButton,
+                  selectedKPI === 'redness' && styles.kpiButtonActive,
+                ]}
+              >
+                <BlurView intensity={40} style={styles.kpiButtonBlur}>
+                  <View style={[
+                    styles.kpiIconContainer,
+                    { backgroundColor: getKPIConfig('redness').color + '30' },
+                    selectedKPI === 'redness' && styles.kpiIconActive,
+                  ]}>
+                    <MaterialIcons
+                      name={getKPIConfig('redness').icon as any}
+                      size={24}
+                      color={getKPIConfig('redness').color}
+                    />
+                  </View>
+                  <Text style={styles.kpiValue}>{Math.round(analysis.detectedFeatures.redness)}</Text>
+                  <Text style={styles.kpiLabel}>Redness</Text>
+                </BlurView>
+              </TouchableOpacity>
+
+              {/* Dark Spots KPI */}
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => handleKPIPress('darkSpots')}
+                style={[
+                  styles.kpiButton,
+                  selectedKPI === 'darkSpots' && styles.kpiButtonActive,
+                ]}
+              >
+                <BlurView intensity={40} style={styles.kpiButtonBlur}>
+                  <View style={[
+                    styles.kpiIconContainer,
+                    { backgroundColor: getKPIConfig('darkSpots').color + '30' },
+                    selectedKPI === 'darkSpots' && styles.kpiIconActive,
+                  ]}>
+                    <MaterialIcons
+                      name={getKPIConfig('darkSpots').icon as any}
+                      size={24}
+                      color={getKPIConfig('darkSpots').color}
+                    />
+                  </View>
+                  <Text style={styles.kpiValue}>{Math.round(analysis.detectedFeatures.darkSpots)}</Text>
+                  <Text style={styles.kpiLabel}>Spots</Text>
+                </BlurView>
+              </TouchableOpacity>
+
+              {/* Hydration KPI */}
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => handleKPIPress('hydration')}
+                style={[
+                  styles.kpiButton,
+                  selectedKPI === 'hydration' && styles.kpiButtonActive,
+                ]}
+              >
+                <BlurView intensity={40} style={styles.kpiButtonBlur}>
+                  <View style={[
+                    styles.kpiIconContainer,
+                    { backgroundColor: getKPIConfig('hydration').color + '30' },
+                    selectedKPI === 'hydration' && styles.kpiIconActive,
+                  ]}>
+                    <MaterialIcons
+                      name={getKPIConfig('hydration').icon as any}
+                      size={24}
+                      color={getKPIConfig('hydration').color}
+                    />
+                  </View>
+                  <Text style={styles.kpiValue}>{Math.round(analysis.detectedFeatures.hydration)}</Text>
+                  <Text style={styles.kpiLabel}>Hydration</Text>
+                </BlurView>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
         )}
       </View>
 
@@ -841,5 +1142,94 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.md,
     fontWeight: theme.fontWeight.bold,
     color: theme.colors.text,
+  },
+  overlayContainer: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  overlayDarkBg: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+  },
+  overlayArea: {
+    position: 'absolute',
+    borderRadius: theme.borderRadius.lg,
+    overflow: 'hidden',
+  },
+  overlayBorder: {
+    ...StyleSheet.absoluteFillObject,
+    borderWidth: 2,
+    borderRadius: theme.borderRadius.lg,
+  },
+  overlayLabel: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    borderRadius: theme.borderRadius.md,
+    overflow: 'hidden',
+  },
+  overlayLabelBlur: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    gap: theme.spacing.xs,
+    overflow: 'hidden',
+  },
+  overlayLabelText: {
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.bold,
+    color: theme.colors.text,
+  },
+  kpiButtonsContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingBottom: theme.spacing.md,
+  },
+  kpiScrollContent: {
+    paddingHorizontal: theme.spacing.lg,
+    gap: theme.spacing.sm,
+  },
+  kpiButton: {
+    width: 90,
+    height: 100,
+    borderRadius: theme.borderRadius.lg,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  kpiButtonActive: {
+    borderColor: theme.colors.primary,
+    transform: [{ scale: 1.05 }],
+  },
+  kpiButtonBlur: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: theme.spacing.sm,
+    overflow: 'hidden',
+  },
+  kpiIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: theme.spacing.xs,
+  },
+  kpiIconActive: {
+    transform: [{ scale: 1.1 }],
+  },
+  kpiValue: {
+    fontSize: 20,
+    fontWeight: theme.fontWeight.bold,
+    color: theme.colors.text,
+    marginBottom: 2,
+  },
+  kpiLabel: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+    fontWeight: theme.fontWeight.medium,
   },
 });
