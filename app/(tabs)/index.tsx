@@ -336,7 +336,12 @@ export default function HomeScreen() {
                       style={styles.photoImage}
                       contentFit="cover"
                       cachePolicy="none"
-                      onError={(error) => console.error('Image load error:', error)}
+                      placeholder={require('../assets/icon.png')}
+                      onError={(error) => {
+                        console.error('Image load error:', error);
+                        console.log('Failed URI:', currentLog.photoUri);
+                        console.log('Attempting to reload...');
+                      }}
                     />
                   ) : (
                     <View style={styles.photoPlaceholder}>

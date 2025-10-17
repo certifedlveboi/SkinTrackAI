@@ -102,21 +102,29 @@ export const skinCareService = {
         return [];
       }
 
-      // Generate signed URLs for photos (valid for 1 hour)
+      // Generate signed URLs for photos (valid for 7 days)
       const logsWithSignedUrls = await Promise.all(
         (data || []).map(async (item) => {
           let photoUri = item.photo_url;
           
           // If photo_url is a storage path (not a full URL), generate signed URL
           if (photoUri && !photoUri.startsWith('http')) {
-            const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-              .from('skin-photos')
-              .createSignedUrl(photoUri, 3600); // 1 hour expiry
-            
-            if (signedUrlError) {
-              console.error('Error creating signed URL:', signedUrlError);
-            } else if (signedUrlData?.signedUrl) {
-              photoUri = signedUrlData.signedUrl;
+            try {
+              const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+                .from('skin-photos')
+                .createSignedUrl(photoUri, 604800); // 7 days expiry (in seconds)
+              
+              if (signedUrlError) {
+                console.error('Error creating signed URL for', photoUri, ':', signedUrlError);
+                // Keep the original path as fallback
+              } else if (signedUrlData?.signedUrl) {
+                photoUri = signedUrlData.signedUrl;
+                console.log('Generated signed URL successfully');
+              } else {
+                console.error('No signed URL returned for', photoUri);
+              }
+            } catch (err) {
+              console.error('Exception generating signed URL:', err);
             }
           }
           
@@ -174,10 +182,17 @@ export const skinCareService = {
 
       console.log('Skin log saved to database');
 
-      // Generate signed URL for immediate use
-      const { data: signedUrlData } = await supabase.storage
+      // Generate signed URL for immediate use (7 days expiry)
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
         .from('skin-photos')
-        .createSignedUrl(photoPath, 3600);
+        .createSignedUrl(photoPath, 604800); // 7 days
+
+      if (signedUrlError) {
+        console.error('Error generating signed URL:', signedUrlError);
+      }
+
+      const finalPhotoUri = signedUrlData?.signedUrl || photoPath;
+      console.log('Returning photo URI:', finalPhotoUri);
 
       return {
         id: data.id,
@@ -185,7 +200,7 @@ export const skinCareService = {
         condition: data.condition,
         concerns: data.concerns || [],
         notes: data.notes || '',
-        photoUri: signedUrlData?.signedUrl || photoPath,
+        photoUri: finalPhotoUri,
         skinScore: data.skin_score,
         analysis: data.analysis_data,
       };

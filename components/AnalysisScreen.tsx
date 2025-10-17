@@ -260,9 +260,12 @@ export default function AnalysisScreen({
           style={styles.photo} 
           contentFit="cover"
           cachePolicy="none"
+          placeholder={require('../assets/icon.png')}
           onError={(error) => {
             console.error('Error loading photo in analysis screen:', error);
             console.log('Photo URI:', photoUri);
+            console.log('URI type:', typeof photoUri);
+            console.log('URI starts with http:', photoUri?.startsWith('http'));
           }}
         />
         
