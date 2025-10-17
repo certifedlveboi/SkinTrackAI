@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { theme } from '@/constants/theme';
-import { Platform } from 'react-native';
+import { Platform, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabsLayout() {
@@ -50,6 +50,30 @@ export default function TabsLayout() {
           title: 'Products',
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="inventory-2" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="scan"
+        options={{
+          title: 'Scan',
+          tabBarIcon: ({ color, focused }) => (
+            <View style={{
+              width: 56,
+              height: 56,
+              borderRadius: 28,
+              backgroundColor: focused ? theme.colors.primary : theme.colors.secondary,
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginBottom: 20,
+              shadowColor: theme.colors.primary,
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 8,
+            }}>
+              <MaterialIcons name="face-retouching-natural" size={28} color="#FFFFFF" />
+            </View>
           ),
         }}
       />
