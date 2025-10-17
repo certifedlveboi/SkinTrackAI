@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import CameraScreen from '@/components/CameraScreen';
 import AnalysisScreen from '@/components/AnalysisScreen';
 import { faceAnalysisService } from '@/services/faceAnalysisService';
 import { useSkinCare } from '@/hooks/useSkinCare';
 import { useAlert } from '@/template';
+import { getSupabaseClient } from '@/template';
+import { theme } from '@/constants/theme';
 
 export default function ScanScreen() {
   const router = useRouter();
@@ -15,7 +17,9 @@ export default function ScanScreen() {
   const [analysis, setAnalysis] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
   const { addLog, refresh } = useSkinCare();
+  const supabase = getSupabaseClient();
 
   useFocusEffect(
     React.useCallback(() => {
@@ -107,6 +111,36 @@ export default function ScanScreen() {
     setAnalysis(null);
   };
 
+  const handleTestWebhook = async () => {
+    setIsTesting(true);
+    try {
+      // Create a simple test image (1x1 red pixel)
+      const testImageBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==';
+      
+      console.log('Sending test request to webhook...');
+      
+      const { data, error } = await supabase.functions.invoke('analyze-skin', {
+        body: { imageBase64: testImageBase64 },
+      });
+
+      if (error) {
+        console.error('Test webhook error:', error);
+        showAlert('Webhook Test Failed', `Error: ${error.message}`);
+      } else {
+        console.log('Test webhook success:', data);
+        showAlert(
+          'Webhook Test Success',
+          `Received response from n8n!\n\nSkin Score: ${data.skinScore}\nSkin Type: ${data.skinType}\nConcerns: ${data.concerns?.length || 0}\nRecommendations: ${data.recommendations?.length || 0}`
+        );
+      }
+    } catch (error: any) {
+      console.error('Test webhook exception:', error);
+      showAlert('Webhook Test Failed', error?.message || 'Unknown error occurred');
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
   if (capturedPhoto) {
     return (
       <AnalysisScreen
@@ -121,6 +155,21 @@ export default function ScanScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Test Webhook Button */}
+      <View style={styles.testContainer}>
+        <TouchableOpacity
+          style={styles.testButton}
+          onPress={handleTestWebhook}
+          disabled={isTesting}
+        >
+          {isTesting ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.testButtonText}>Test n8n Webhook</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+
       <CameraScreen
         visible={cameraVisible}
         onClose={handleClose}
@@ -134,5 +183,29 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#1A202C',
+  },
+  testContainer: {
+    position: 'absolute',
+    top: 60,
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+    alignItems: 'center',
+  },
+  testButton: {
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 20,
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  testButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
