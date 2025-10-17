@@ -25,7 +25,7 @@ interface AnalysisScreenProps {
   onRetake: () => void;
 }
 
-type KPIType = 'skinScore' | 'acne' | 'texture' | 'redness' | 'darkSpots' | 'hydration' | null;
+type AnalysisType = 'hydration' | 'search' | 'poreSize' | 'color' | 'tone' | 'darkSpot' | null;
 
 export default function AnalysisScreen({
   photoUri,
@@ -42,7 +42,8 @@ export default function AnalysisScreen({
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const overlayAnim = useRef(new Animated.Value(0)).current;
   
-  const [selectedKPI, setSelectedKPI] = useState<KPIType>(null);
+  const [selectedType, setSelectedType] = useState<AnalysisType>('hydration');
+  const [estimatedTime] = useState(0.06);
 
   useEffect(() => {
     if (isAnalyzing) {
@@ -119,6 +120,11 @@ export default function AnalysisScreen({
           friction: 7,
           useNativeDriver: true,
         }),
+        Animated.timing(overlayAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
       ]).start();
     }
   }, [isAnalyzing, analysis]);
@@ -141,314 +147,84 @@ export default function AnalysisScreen({
     outputRange: [0, height * 0.5],
   });
 
-  const handleKPIPress = (kpi: KPIType) => {
-    if (selectedKPI === kpi) {
-      // Deselect if already selected
-      Animated.timing(overlayAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start(() => setSelectedKPI(null));
-    } else {
-      // Select new KPI
-      setSelectedKPI(kpi);
-      Animated.timing(overlayAnim, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }).start();
-    }
+  const handleTypePress = (type: AnalysisType) => {
+    setSelectedType(type);
+    Animated.timing(overlayAnim, {
+      toValue: 1,
+      duration: 400,
+      useNativeDriver: true,
+    }).start();
   };
 
-  const getKPIConfig = (type: string) => {
+  const handleScanPress = () => {
+    // Navigate to camera
+    onRetake();
+  };
+
+  const getTypeConfig = (type: AnalysisType) => {
     const configs: Record<string, { color: string; icon: string; label: string }> = {
-      skinScore: { color: '#7DD3C0', icon: 'stars', label: 'Overall' },
-      acne: { color: '#F56565', icon: 'warning', label: 'Acne' },
-      texture: { color: '#9F7AEA', icon: 'grain', label: 'Texture' },
-      redness: { color: '#FC8181', icon: 'local-fire-department', label: 'Redness' },
-      darkSpots: { color: '#805AD5', icon: 'brightness-3', label: 'Spots' },
       hydration: { color: '#4299E1', icon: 'opacity', label: 'Hydration' },
+      search: { color: '#8B8B8B', icon: 'search', label: 'Search' },
+      poreSize: { color: '#48BB78', icon: 'blur-circular', label: 'Pore' },
+      color: { color: '#ED8936', icon: 'palette', label: 'Color' },
+      tone: { color: '#F6E05E', icon: 'brightness-6', label: 'Tone' },
+      darkSpot: { color: '#805AD5', icon: 'brightness-3', label: 'Dark Spot' },
     };
-    return configs[type] || configs.skinScore;
-  };
-
-  const renderAcneOverlay = () => {
-    // Acne spots as circular dots
-    const acneSpots = [
-      { top: '20%', left: '42%', size: 12 },
-      { top: '25%', left: '38%', size: 10 },
-      { top: '23%', left: '55%', size: 14 },
-      { top: '28%', left: '48%', size: 8 },
-      { top: '43%', left: '50%', size: 11 },
-      { top: '46%', left: '53%', size: 9 },
-      { top: '58%', left: '32%', size: 13 },
-      { top: '60%', left: '35%', size: 10 },
-      { top: '62%', left: '30%', size: 8 },
-      { top: '59%', left: '60%', size: 12 },
-      { top: '63%', left: '65%', size: 9 },
-      { top: '61%', left: '57%', size: 11 },
-    ];
-
-    return acneSpots.map((spot, index) => (
-      <Animated.View
-        key={index}
-        style={[
-          styles.acneSpot,
-          {
-            top: spot.top,
-            left: spot.left,
-            width: spot.size,
-            height: spot.size,
-            borderRadius: spot.size / 2,
-            opacity: overlayAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, 0.8],
-            }),
-            transform: [
-              {
-                scale: overlayAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, 1],
-                }),
-              },
-            ],
-          },
-        ]}>
-        <View style={styles.acneSpotInner} />
-      </Animated.View>
-    ));
+    return configs[type || 'hydration'];
   };
 
   const renderHydrationOverlay = () => {
-    // Full blue moisture filter with droplet patterns
-    const moistureDroplets = [
-      { top: '30%', left: '28%', size: 16 },
-      { top: '32%', left: '70%', size: 14 },
-      { top: '48%', left: '40%', size: 20 },
-      { top: '50%', left: '58%', size: 18 },
-      { top: '65%', left: '35%', size: 15 },
-      { top: '68%', left: '62%', size: 17 },
-    ];
-
+    // Blue and green gradient overlay like reference
     return (
-      <>
-        <Animated.View
-          style={[
-            styles.hydrationFullOverlay,
-            {
-              opacity: overlayAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0, 0.4],
-              }),
-            },
-          ]}>
+      <Animated.View
+        style={[{
+          ...StyleSheet.absoluteFillObject,
+          opacity: overlayAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0, 0.7],
+          }),
+        }]}
+      >
+        {/* Left side - Blue gradient */}
+        <View style={styles.overlayLeftSide}>
           <LinearGradient
-            colors={['#4299E160', '#63B3ED80', '#4299E160']}
+            colors={['#4299E180', '#63B3ED90', '#4299E1A0']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={StyleSheet.absoluteFill}
           />
-        </Animated.View>
-        {moistureDroplets.map((droplet, index) => (
-          <Animated.View
-            key={index}
-            style={[
-              styles.moistureDroplet,
-              {
-                top: droplet.top,
-                left: droplet.left,
-                width: droplet.size,
-                height: droplet.size,
-                borderRadius: droplet.size / 2,
-                opacity: overlayAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, 0.7],
-                }),
-                transform: [
-                  {
-                    scale: overlayAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0, 1],
-                    }),
-                  },
-                ],
-              },
-            ]}>
-            <View style={styles.dropletShine} />
-          </Animated.View>
+        </View>
+        {/* Right side - Green/Yellow gradient */}
+        <View style={styles.overlayRightSide}>
+          <LinearGradient
+            colors={['#48BB7880', '#68D39190', '#9AE6B490']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+        </View>
+        {/* Sparkle dots */}
+        {[...Array(20)].map((_, i) => (
+          <View
+            key={i}
+            style={[styles.sparkle, {
+              top: `${15 + Math.random() * 70}%`,
+              left: `${20 + Math.random() * 60}%`,
+              width: 2 + Math.random() * 3,
+              height: 2 + Math.random() * 3,
+            }]}
+          />
         ))}
-      </>
-    );
-  };
-
-  const renderTextureOverlay = () => {
-    // Grid pattern showing texture analysis
-    const textureAreas = [
-      { top: '38%', left: '40%', width: '20%', height: '25%' },
-      { top: '52%', left: '25%', width: '22%', height: '20%' },
-      { top: '52%', left: '53%', width: '22%', height: '20%' },
-    ];
-
-    return textureAreas.map((area, areaIndex) => (
-      <Animated.View
-        key={areaIndex}
-        style={[
-          styles.textureArea,
-          {
-            top: area.top,
-            left: area.left,
-            width: area.width,
-            height: area.height,
-            opacity: overlayAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, 0.6],
-            }),
-          },
-        ]}>
-        <View style={styles.textureGrid}>
-          {[...Array(4)].map((_, row) => (
-            <View key={row} style={styles.textureRow}>
-              {[...Array(4)].map((_, col) => (
-                <View key={col} style={styles.textureCell} />
-              ))}
-            </View>
-          ))}
-        </View>
-      </Animated.View>
-    ));
-  };
-
-  const renderRednessOverlay = () => {
-    // Red tinted areas showing redness
-    const rednessAreas = [
-      { top: '40%', left: '48%', width: '14%', height: '18%', intensity: 0.7 },
-      { top: '55%', left: '30%', width: '18%', height: '16%', intensity: 0.6 },
-      { top: '55%', left: '52%', width: '18%', height: '16%', intensity: 0.6 },
-    ];
-
-    return rednessAreas.map((area, index) => (
-      <Animated.View
-        key={index}
-        style={[
-          styles.rednessArea,
-          {
-            top: area.top,
-            left: area.left,
-            width: area.width,
-            height: area.height,
-            opacity: overlayAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, area.intensity],
-            }),
-            transform: [
-              {
-                scale: overlayAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.8, 1],
-                }),
-              },
-            ],
-          },
-        ]}>
-        <LinearGradient
-          colors={['#FC818180', '#F5656580', '#FC818180']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.rednessGradient}
-        />
-      </Animated.View>
-    ));
-  };
-
-  const renderDarkSpotsOverlay = () => {
-    // Circular dark spots with gradients
-    const darkSpots = [
-      { top: '22%', left: '40%', size: 28 },
-      { top: '26%', left: '58%', size: 24 },
-      { top: '30%', left: '35%', size: 20 },
-      { top: '60%', left: '33%', size: 26 },
-      { top: '63%', left: '60%', size: 22 },
-      { top: '55%', left: '48%', size: 18 },
-    ];
-
-    return darkSpots.map((spot, index) => (
-      <Animated.View
-        key={index}
-        style={[
-          styles.darkSpot,
-          {
-            top: spot.top,
-            left: spot.left,
-            width: spot.size,
-            height: spot.size,
-            borderRadius: spot.size / 2,
-            opacity: overlayAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, 0.75],
-            }),
-            transform: [
-              {
-                scale: overlayAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, 1],
-                }),
-              },
-            ],
-          },
-        ]}>
-        <LinearGradient
-          colors={['#805AD5', '#553C9A', '#2D3748']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.darkSpotGradient}
-        />
-      </Animated.View>
-    ));
-  };
-
-  const renderSkinScoreOverlay = () => {
-    // Face mesh overlay with scanning grid
-    return (
-      <Animated.View
-        style={[
-          styles.faceOutline,
-          {
-            opacity: overlayAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, 0.8],
-            }),
-          },
-        ]}>
-        <View style={styles.faceOvalBorder} />
-        <View style={styles.scanGridOverlay}>
-          {[...Array(6)].map((_, i) => (
-            <View key={`h-${i}`} style={[styles.scanGridLineH, { top: `${(i + 1) * 14}%` }]} />
-          ))}
-          {[...Array(5)].map((_, i) => (
-            <View key={`v-${i}`} style={[styles.scanGridLineV, { left: `${(i + 1) * 16.6}%` }]} />
-          ))}
-        </View>
       </Animated.View>
     );
   };
 
-  const renderKPIOverlay = (type: KPIType) => {
-    switch (type) {
-      case 'acne':
-        return renderAcneOverlay();
-      case 'hydration':
-        return renderHydrationOverlay();
-      case 'texture':
-        return renderTextureOverlay();
-      case 'redness':
-        return renderRednessOverlay();
-      case 'darkSpots':
-        return renderDarkSpotsOverlay();
-      case 'skinScore':
-        return renderSkinScoreOverlay();
-      default:
-        return null;
+  const renderAnalysisOverlay = (type: AnalysisType) => {
+    if (type === 'hydration') {
+      return renderHydrationOverlay();
     }
+    // For other types, return similar colored overlays
+    return null;
   };
 
   const detectionPoints = [
@@ -468,44 +244,129 @@ export default function AnalysisScreen({
 
   return (
     <LinearGradient
-      colors={[theme.colors.backgroundGradientStart, theme.colors.backgroundGradientEnd]}
+      colors={['#F5F5F5', '#FFFFFF']}
       style={styles.container}
     >
-      {/* Photo with advanced scanning overlay */}
+      {/* Photo with overlay */}
       <View style={styles.photoContainer}>
         <Image source={{ uri: photoUri }} style={styles.photo} contentFit="cover" />
         
-        {/* Interactive overlays for selected KPI */}
-        {analysis && !isAnalyzing && selectedKPI && (
+        {/* Analysis overlays */}
+        {analysis && !isAnalyzing && selectedType && (
           <View style={styles.overlayContainer}>
-            <View style={styles.overlayDarkBg} />
-            {renderKPIOverlay(selectedKPI)}
-            {/* KPI Label on overlay */}
-            <Animated.View
+            {renderAnalysisOverlay(selectedType)}
+          </View>
+        )}
+
+        {/* Icon buttons row below photo */}
+        {analysis && !isAnalyzing && (
+          <View style={styles.iconButtonsRow}>
+            <TouchableOpacity
               style={[
-                styles.overlayLabel,
-                {
-                  opacity: overlayAnim,
-                  transform: [
-                    {
-                      translateY: overlayAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [-20, 0],
-                      }),
-                    },
-                  ],
-                },
+                styles.iconButton,
+                selectedType === 'hydration' && styles.iconButtonActive,
               ]}
+              onPress={() => handleTypePress('hydration')}
             >
-              <BlurView intensity={30} style={styles.overlayLabelBlur}>
+              <View style={[styles.iconCircle, { borderColor: getTypeConfig('hydration').color }]}>
                 <MaterialIcons
-                  name={getKPIConfig(selectedKPI).icon as any}
-                  size={20}
-                  color={getKPIConfig(selectedKPI).color}
+                  name={getTypeConfig('hydration').icon as any}
+                  size={24}
+                  color={selectedType === 'hydration' ? '#FFFFFF' : getTypeConfig('hydration').color}
                 />
-                <Text style={styles.overlayLabelText}>{getKPIConfig(selectedKPI).label}</Text>
-              </BlurView>
-            </Animated.View>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.iconButton,
+                selectedType === 'search' && styles.iconButtonActive,
+              ]}
+              onPress={() => handleTypePress('search')}
+            >
+              <View style={[styles.iconCircle, { borderColor: getTypeConfig('search').color }]}>
+                <MaterialIcons
+                  name={getTypeConfig('search').icon as any}
+                  size={24}
+                  color={selectedType === 'search' ? '#FFFFFF' : getTypeConfig('search').color}
+                />
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.iconButton,
+                selectedType === 'poreSize' && styles.iconButtonActive,
+              ]}
+              onPress={() => handleTypePress('poreSize')}
+            >
+              <View style={[styles.iconCircle, { borderColor: getTypeConfig('poreSize').color }]}>
+                <MaterialIcons
+                  name={getTypeConfig('poreSize').icon as any}
+                  size={24}
+                  color={selectedType === 'poreSize' ? '#FFFFFF' : getTypeConfig('poreSize').color}
+                />
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.iconButton,
+                selectedType === 'color' && styles.iconButtonActive,
+              ]}
+              onPress={() => handleTypePress('color')}
+            >
+              <View style={[styles.iconCircle, { borderColor: getTypeConfig('color').color }]}>
+                <MaterialIcons
+                  name={getTypeConfig('color').icon as any}
+                  size={24}
+                  color={selectedType === 'color' ? '#FFFFFF' : getTypeConfig('color').color}
+                />
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.iconButton,
+                selectedType === 'tone' && styles.iconButtonActive,
+              ]}
+              onPress={() => handleTypePress('tone')}
+            >
+              <View style={[styles.iconCircle, { borderColor: getTypeConfig('tone').color }]}>
+                <MaterialIcons
+                  name={getTypeConfig('tone').icon as any}
+                  size={24}
+                  color={selectedType === 'tone' ? '#FFFFFF' : getTypeConfig('tone').color}
+                />
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.iconButton,
+                selectedType === 'darkSpot' && styles.iconButtonActive,
+              ]}
+              onPress={() => handleTypePress('darkSpot')}
+            >
+              <View style={[styles.iconCircle, { borderColor: getTypeConfig('darkSpot').color }]}>
+                <MaterialIcons
+                  name={getTypeConfig('darkSpot').icon as any}
+                  size={24}
+                  color={selectedType === 'darkSpot' ? '#FFFFFF' : getTypeConfig('darkSpot').color}
+                />
+              </View>
+            </TouchableOpacity>
+
+            {/* Scan Button */}
+            <TouchableOpacity
+              style={styles.scanIconButton}
+              onPress={handleScanPress}
+            >
+              <View style={[styles.iconCircle, styles.scanCircle]}>
+                <MaterialIcons name="camera-alt" size={24} color="#FFFFFF" />
+              </View>
+              <Text style={styles.scanLabel}>Scan</Text>
+            </TouchableOpacity>
           </View>
         )}
         
@@ -580,341 +441,103 @@ export default function AnalysisScreen({
             </BlurView>
           </>
         )}
-        
-        {/* KPI Buttons at bottom of photo */}
-        {analysis && !isAnalyzing && (
-          <View style={styles.kpiButtonsContainer}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.kpiScrollContent}
-            >
-              {/* Skin Score KPI */}
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => handleKPIPress('skinScore')}
-                style={[
-                  styles.kpiButton,
-                  selectedKPI === 'skinScore' && styles.kpiButtonActive,
-                ]}
-              >
-                <BlurView intensity={40} style={styles.kpiButtonBlur}>
-                  <View style={[
-                    styles.kpiIconContainer,
-                    { backgroundColor: getKPIConfig('skinScore').color + '30' },
-                    selectedKPI === 'skinScore' && styles.kpiIconActive,
-                  ]}>
-                    <MaterialIcons
-                      name={getKPIConfig('skinScore').icon as any}
-                      size={24}
-                      color={getKPIConfig('skinScore').color}
-                    />
-                  </View>
-                  <Text style={styles.kpiValue}>{analysis.skinScore}</Text>
-                  <Text style={styles.kpiLabel}>Overall</Text>
-                </BlurView>
-              </TouchableOpacity>
-
-              {/* Acne KPI */}
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => handleKPIPress('acne')}
-                style={[
-                  styles.kpiButton,
-                  selectedKPI === 'acne' && styles.kpiButtonActive,
-                ]}
-              >
-                <BlurView intensity={40} style={styles.kpiButtonBlur}>
-                  <View style={[
-                    styles.kpiIconContainer,
-                    { backgroundColor: getKPIConfig('acne').color + '30' },
-                    selectedKPI === 'acne' && styles.kpiIconActive,
-                  ]}>
-                    <MaterialIcons
-                      name={getKPIConfig('acne').icon as any}
-                      size={24}
-                      color={getKPIConfig('acne').color}
-                    />
-                  </View>
-                  <Text style={styles.kpiValue}>{Math.round(analysis.detectedFeatures.acne)}</Text>
-                  <Text style={styles.kpiLabel}>Acne</Text>
-                </BlurView>
-              </TouchableOpacity>
-
-              {/* Texture KPI */}
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => handleKPIPress('texture')}
-                style={[
-                  styles.kpiButton,
-                  selectedKPI === 'texture' && styles.kpiButtonActive,
-                ]}
-              >
-                <BlurView intensity={40} style={styles.kpiButtonBlur}>
-                  <View style={[
-                    styles.kpiIconContainer,
-                    { backgroundColor: getKPIConfig('texture').color + '30' },
-                    selectedKPI === 'texture' && styles.kpiIconActive,
-                  ]}>
-                    <MaterialIcons
-                      name={getKPIConfig('texture').icon as any}
-                      size={24}
-                      color={getKPIConfig('texture').color}
-                    />
-                  </View>
-                  <Text style={styles.kpiValue}>{Math.round(analysis.detectedFeatures.texture)}</Text>
-                  <Text style={styles.kpiLabel}>Texture</Text>
-                </BlurView>
-              </TouchableOpacity>
-
-              {/* Redness KPI */}
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => handleKPIPress('redness')}
-                style={[
-                  styles.kpiButton,
-                  selectedKPI === 'redness' && styles.kpiButtonActive,
-                ]}
-              >
-                <BlurView intensity={40} style={styles.kpiButtonBlur}>
-                  <View style={[
-                    styles.kpiIconContainer,
-                    { backgroundColor: getKPIConfig('redness').color + '30' },
-                    selectedKPI === 'redness' && styles.kpiIconActive,
-                  ]}>
-                    <MaterialIcons
-                      name={getKPIConfig('redness').icon as any}
-                      size={24}
-                      color={getKPIConfig('redness').color}
-                    />
-                  </View>
-                  <Text style={styles.kpiValue}>{Math.round(analysis.detectedFeatures.redness)}</Text>
-                  <Text style={styles.kpiLabel}>Redness</Text>
-                </BlurView>
-              </TouchableOpacity>
-
-              {/* Dark Spots KPI */}
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => handleKPIPress('darkSpots')}
-                style={[
-                  styles.kpiButton,
-                  selectedKPI === 'darkSpots' && styles.kpiButtonActive,
-                ]}
-              >
-                <BlurView intensity={40} style={styles.kpiButtonBlur}>
-                  <View style={[
-                    styles.kpiIconContainer,
-                    { backgroundColor: getKPIConfig('darkSpots').color + '30' },
-                    selectedKPI === 'darkSpots' && styles.kpiIconActive,
-                  ]}>
-                    <MaterialIcons
-                      name={getKPIConfig('darkSpots').icon as any}
-                      size={24}
-                      color={getKPIConfig('darkSpots').color}
-                    />
-                  </View>
-                  <Text style={styles.kpiValue}>{Math.round(analysis.detectedFeatures.darkSpots)}</Text>
-                  <Text style={styles.kpiLabel}>Spots</Text>
-                </BlurView>
-              </TouchableOpacity>
-
-              {/* Hydration KPI */}
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => handleKPIPress('hydration')}
-                style={[
-                  styles.kpiButton,
-                  selectedKPI === 'hydration' && styles.kpiButtonActive,
-                ]}
-              >
-                <BlurView intensity={40} style={styles.kpiButtonBlur}>
-                  <View style={[
-                    styles.kpiIconContainer,
-                    { backgroundColor: getKPIConfig('hydration').color + '30' },
-                    selectedKPI === 'hydration' && styles.kpiIconActive,
-                  ]}>
-                    <MaterialIcons
-                      name={getKPIConfig('hydration').icon as any}
-                      size={24}
-                      color={getKPIConfig('hydration').color}
-                    />
-                  </View>
-                  <Text style={styles.kpiValue}>{Math.round(analysis.detectedFeatures.hydration)}</Text>
-                  <Text style={styles.kpiLabel}>Hydration</Text>
-                </BlurView>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        )}
       </View>
 
-      {/* Analysis Results */}
+      {/* Analysis Results - Compact Design */}
       {analysis && !isAnalyzing && (
         <Animated.View style={[styles.resultsContainer, { opacity: fadeAnim }]}>
           <ScrollView
             contentContainerStyle={styles.resultsContent}
             showsVerticalScrollIndicator={false}
           >
-            {/* Hero Score Card */}
-            <Animated.View style={[styles.heroCard, { transform: [{ scale: scaleAnim }] }]}>
-              <LinearGradient
-                colors={[theme.colors.primary + '40', theme.colors.secondary + '40']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.heroGradient}
-              >
-                <BlurView intensity={30} style={styles.heroBlur}>
-                  <Text style={styles.heroLabel}>Skin Health Score</Text>
-                  <View style={styles.scoreCircle}>
-                    <Text style={[styles.heroScore, { color: getScoreColor(analysis.skinScore) }]}>
-                      {analysis.skinScore}
-                    </Text>
-                  </View>
-                  <View style={styles.scoreBar}>
-                    <View style={[styles.scoreBarFill, { 
-                      width: `${analysis.skinScore}%`,
-                      backgroundColor: getScoreColor(analysis.skinScore),
-                    }]} />
-                  </View>
-                  <Text style={styles.heroSubtext}>
-                    {analysis.skinScore >= 85 ? 'Excellent' : 
-                     analysis.skinScore >= 70 ? 'Good' : 
-                     analysis.skinScore >= 50 ? 'Fair' : 'Needs Care'}
-                  </Text>
-                </BlurView>
-              </LinearGradient>
-            </Animated.View>
-
-            {/* Skin Features Analysis */}
-            <View style={styles.featuresGrid}>
-              {Object.entries(analysis.detectedFeatures).map(([feature, value], index) => (
-                <Animated.View
-                  key={feature}
-                  style={[
-                    styles.featureCard,
-                    {
-                      opacity: fadeAnim,
-                      transform: [
-                        {
-                          translateY: fadeAnim.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [30, 0],
-                          }),
-                        },
-                      ],
-                    },
-                  ]}
-                >
-                  <BlurView intensity={20} style={styles.featureBlur}>
-                    <Text style={styles.featureName}>
-                      {feature.charAt(0).toUpperCase() + feature.slice(1)}
-                    </Text>
-                    <Text style={[styles.featureValue, { color: getFeatureColor(value) }]}>
-                      {Math.round(value)}
-                    </Text>
-                    <View style={styles.featureBar}>
-                      <View
-                        style={[
-                          styles.featureBarFill,
-                          {
-                            width: `${value}%`,
-                            backgroundColor: getFeatureColor(value),
-                          },
-                        ]}
-                      />
-                    </View>
-                  </BlurView>
-                </Animated.View>
-              ))}
+            {/* Estimated Time */}
+            <View style={styles.timeCard}>
+              <Text style={styles.timeText}>Estimated Time Remaining: {estimatedTime.toFixed(2)}</Text>
+              <TouchableOpacity>
+                <MaterialIcons name="edit" size={20} color={theme.colors.textLight} />
+              </TouchableOpacity>
             </View>
 
-            {/* Skin Type Card */}
-            <BlurView intensity={30} style={styles.card}>
-              <View style={styles.cardHeader}>
-                <View style={styles.cardIconContainer}>
-                  <MaterialIcons name="face-retouching-natural" size={24} color={theme.colors.tertiary} />
-                </View>
-                <Text style={styles.cardTitle}>Detected Skin Type</Text>
-              </View>
-              <View style={styles.skinTypeContainer}>
-                <Text style={styles.skinTypeText}>{analysis.skinType.toUpperCase()}</Text>
-              </View>
-            </BlurView>
+            {/* Comprehensive Skin Analysis Title */}
+            <Text style={styles.analysisTitle}>Comprehensive Skin Analysis</Text>
 
-            {/* Concerns Section */}
-            {analysis.concerns.length > 0 && (
-              <BlurView intensity={30} style={styles.card}>
-                <View style={styles.cardHeader}>
-                  <View style={styles.cardIconContainer}>
-                    <MaterialIcons name="visibility" size={24} color={theme.colors.warning} />
-                  </View>
-                  <Text style={styles.cardTitle}>Detected Areas</Text>
-                  <View style={styles.concernsBadge}>
-                    <Text style={styles.concernsCount}>{analysis.concerns.length}</Text>
-                  </View>
+            {/* Analysis Cards */}
+            <View style={styles.analysisCards}>
+              {/* Hydration Card */}
+              <TouchableOpacity style={styles.analysisCard} activeOpacity={0.8}>
+                <View style={[styles.analysisIconCircle, { backgroundColor: '#4299E1' }]}>
+                  <MaterialIcons name="opacity" size={28} color="#FFFFFF" />
                 </View>
-                {analysis.concerns.map((concern, index) => (
-                  <View key={index} style={styles.concernItem}>
-                    <View style={styles.concernLeft}>
-                      <View style={[
-                        styles.concernDot,
-                        { backgroundColor: 
-                          concern.severity === 'high' ? theme.colors.error :
-                          concern.severity === 'medium' ? theme.colors.warning :
-                          theme.colors.success
-                        }
-                      ]} />
-                      <View>
-                        <Text style={styles.concernType}>{concern.type}</Text>
-                        {concern.location && (
-                          <Text style={styles.concernLocation}>📍 {concern.location}</Text>
-                        )}
-                      </View>
-                    </View>
-                    <View style={[
-                      styles.severityBadge,
-                      {
-                        backgroundColor:
-                          concern.severity === 'high' ? theme.colors.error + '30' :
-                          concern.severity === 'medium' ? theme.colors.warning + '30' :
-                          theme.colors.success + '30',
-                      },
-                    ]}>
-                      <Text style={[
-                        styles.severityText,
+                <View style={styles.analysisCardContent}>
+                  <Text style={styles.analysisCardTitle}>
+                    Hydration {Math.round(analysis.detectedFeatures.hydration)}% (Optimal)
+                  </Text>
+                  <Text style={styles.analysisCardSubtitle}>
+                    Essential for plumpness & barrier function.
+                  </Text>
+                  <View style={styles.progressBar}>
+                    <View
+                      style={[
+                        styles.progressBarFill,
                         {
-                          color:
-                            concern.severity === 'high' ? theme.colors.error :
-                            concern.severity === 'medium' ? theme.colors.warning :
-                            theme.colors.success,
+                          width: `${analysis.detectedFeatures.hydration}%`,
+                          backgroundColor: '#48BB78',
                         },
-                      ]}>
-                        {concern.severity}
-                      </Text>
-                    </View>
+                      ]}
+                    />
                   </View>
-                ))}
-              </BlurView>
-            )}
-
-            {/* Recommendations */}
-            <BlurView intensity={30} style={styles.card}>
-              <View style={styles.cardHeader}>
-                <View style={styles.cardIconContainer}>
-                  <MaterialIcons name="tips-and-updates" size={24} color={theme.colors.accent} />
                 </View>
-                <Text style={styles.cardTitle}>AI Recommendations</Text>
-              </View>
-              {analysis.recommendations.map((rec, index) => (
-                <View key={index} style={styles.recommendationItem}>
-                  <View style={styles.recommendationNumber}>
-                    <Text style={styles.recommendationNumberText}>{index + 1}</Text>
+                <MaterialIcons name="chevron-right" size={24} color={theme.colors.textLight} />
+              </TouchableOpacity>
+
+              {/* Pore Size Card */}
+              <TouchableOpacity style={styles.analysisCard} activeOpacity={0.8}>
+                <View style={[styles.analysisIconCircle, { backgroundColor: '#48BB78' }]}>
+                  <MaterialIcons name="blur-circular" size={28} color="#FFFFFF" />
+                </View>
+                <View style={styles.analysisCardContent}>
+                  <Text style={styles.analysisCardTitle}>Pore Size: 0.3mm (Minimal)</Text>
+                  <Text style={styles.analysisCardSubtitle}>Red blue mes onde your formation.</Text>
+                  <View style={styles.progressBar}>
+                    <View
+                      style={[
+                        styles.progressBarFill,
+                        {
+                          width: '30%',
+                          backgroundColor: '#F6AD55',
+                        },
+                      ]}
+                    />
                   </View>
+                </View>
+                <MaterialIcons name="more-horiz" size={24} color={theme.colors.textLight} />
+              </TouchableOpacity>
+
+              {/* Redness Card */}
+              <TouchableOpacity style={styles.analysisCard} activeOpacity={0.8}>
+                <View style={[styles.analysisIconCircle, { backgroundColor: '#FC8181' }]}>
+                  <MaterialIcons name="local-fire-department" size={28} color="#FFFFFF" />
+                </View>
+                <View style={styles.analysisCardContent}>
+                  <Text style={styles.analysisCardTitle}>
+                    Redness {Math.round(analysis.detectedFeatures.redness)}% (Lúintas)
+                  </Text>
+                  <Text style={styles.analysisCardSubtitle}>Sound a cluse for tallak.</Text>
+                </View>
+                <MaterialIcons name="chevron-right" size={24} color={theme.colors.textLight} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Personalized Recommendations */}
+            <View style={styles.recommendationsCard}>
+              <Text style={styles.recommendationsTitle}>Personalized Recommendations</Text>
+              {analysis.recommendations.slice(0, 2).map((rec, index) => (
+                <View key={index} style={styles.recommendationItem}>
+                  <Text style={styles.recommendationBullet}>•</Text>
                   <Text style={styles.recommendationText}>{rec}</Text>
                 </View>
               ))}
-            </BlurView>
+            </View>
 
             {/* Action Buttons */}
             <View style={styles.actionButtons}>
@@ -950,14 +573,82 @@ const styles = StyleSheet.create({
   },
   photoContainer: {
     width: width,
-    height: height * 0.5,
+    height: height * 0.55,
     overflow: 'hidden',
     borderBottomLeftRadius: theme.borderRadius.xl,
     borderBottomRightRadius: theme.borderRadius.xl,
+    backgroundColor: '#FFFFFF',
   },
   photo: {
     width: '100%',
     height: '100%',
+  },
+  overlayContainer: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  overlayLeftSide: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: '50%',
+  },
+  overlayRightSide: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: '50%',
+  },
+  sparkle: {
+    position: 'absolute',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    opacity: 0.8,
+  },
+  iconButtonsRow: {
+    position: 'absolute',
+    bottom: 16,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: theme.spacing.lg,
+  },
+  iconButton: {
+    alignItems: 'center',
+  },
+  iconButtonActive: {
+    transform: [{ scale: 1.1 }],
+  },
+  iconCircle: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    borderWidth: 2,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  scanIconButton: {
+    alignItems: 'center',
+  },
+  scanCircle: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  scanLabel: {
+    fontSize: 10,
+    color: '#333',
+    marginTop: 4,
+    fontWeight: '600',
   },
   scanOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -1099,221 +790,101 @@ const styles = StyleSheet.create({
   },
   resultsContainer: {
     flex: 1,
+    backgroundColor: '#F5F5F5',
   },
   resultsContent: {
     padding: theme.spacing.lg,
-    paddingTop: theme.spacing.xl,
   },
-  heroCard: {
-    marginBottom: theme.spacing.lg,
-    borderRadius: theme.borderRadius.xl,
-    overflow: 'hidden',
-  },
-  heroGradient: {
-    borderRadius: theme.borderRadius.xl,
-    padding: 2,
-  },
-  heroBlur: {
-    padding: theme.spacing.xl,
-    alignItems: 'center',
-    overflow: 'hidden',
-    borderRadius: theme.borderRadius.xl,
-  },
-  heroLabel: {
-    fontSize: theme.fontSize.md,
-    color: theme.colors.textSecondary,
-    fontWeight: theme.fontWeight.semibold,
-    marginBottom: theme.spacing.md,
-  },
-  scoreCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: theme.colors.glass,
-    borderWidth: 3,
-    borderColor: theme.colors.glassBorder,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: theme.spacing.md,
-  },
-  heroScore: {
-    fontSize: 48,
-    fontWeight: theme.fontWeight.bold,
-  },
-  scoreBar: {
-    width: '100%',
-    height: 8,
-    backgroundColor: theme.colors.glass,
-    borderRadius: theme.borderRadius.sm,
-    marginVertical: theme.spacing.md,
-    overflow: 'hidden',
-  },
-  scoreBarFill: {
-    height: '100%',
-    borderRadius: theme.borderRadius.sm,
-  },
-  heroSubtext: {
-    fontSize: theme.fontSize.lg,
-    color: theme.colors.text,
-    fontWeight: theme.fontWeight.semibold,
-  },
-  featuresGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: theme.spacing.md,
-    marginBottom: theme.spacing.lg,
-  },
-  featureCard: {
-    width: (width - theme.spacing.lg * 2 - theme.spacing.md) / 2,
-    borderRadius: theme.borderRadius.lg,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: theme.colors.glassBorder,
-  },
-  featureBlur: {
-    padding: theme.spacing.md,
-    overflow: 'hidden',
-  },
-  featureName: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.textSecondary,
-    marginBottom: theme.spacing.xs,
-    fontWeight: theme.fontWeight.medium,
-  },
-  featureValue: {
-    fontSize: theme.fontSize.xl,
-    fontWeight: theme.fontWeight.bold,
-    marginBottom: theme.spacing.sm,
-  },
-  featureBar: {
-    width: '100%',
-    height: 4,
-    backgroundColor: theme.colors.glass,
-    borderRadius: theme.borderRadius.sm,
-    overflow: 'hidden',
-  },
-  featureBarFill: {
-    height: '100%',
-    borderRadius: theme.borderRadius.sm,
-  },
-  card: {
-    backgroundColor: theme.colors.glass,
-    borderRadius: theme.borderRadius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.glassBorder,
-    padding: theme.spacing.lg,
-    marginBottom: theme.spacing.md,
-    overflow: 'hidden',
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: theme.spacing.md,
-    gap: theme.spacing.sm,
-  },
-  cardIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: theme.colors.glass,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cardTitle: {
-    fontSize: theme.fontSize.lg,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.text,
-    flex: 1,
-  },
-  skinTypeContainer: {
-    backgroundColor: theme.colors.primary + '30',
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.md,
-    alignItems: 'center',
-  },
-  skinTypeText: {
-    fontSize: theme.fontSize.xl,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.primary,
-    letterSpacing: 2,
-  },
-  concernsBadge: {
-    backgroundColor: theme.colors.warning + '30',
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 4,
-    borderRadius: theme.borderRadius.round,
-    minWidth: 28,
-    alignItems: 'center',
-  },
-  concernsCount: {
-    fontSize: theme.fontSize.sm,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.warning,
-  },
-  concernItem: {
+  timeCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: theme.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.divider,
+    backgroundColor: '#2D3748',
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
   },
-  concernLeft: {
+  timeText: {
+    fontSize: theme.fontSize.sm,
+    color: '#FFFFFF',
+    fontWeight: '500',
+  },
+  analysisTitle: {
+    fontSize: 20,
+    fontWeight: theme.fontWeight.bold,
+    color: '#1A202C',
+    marginBottom: theme.spacing.md,
+  },
+  analysisCards: {
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.lg,
+  },
+  analysisCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.sm,
+    backgroundColor: '#2D3748',
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+    gap: theme.spacing.md,
+  },
+  analysisIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  analysisCardContent: {
     flex: 1,
   },
-  concernDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  concernType: {
+  analysisCardTitle: {
     fontSize: theme.fontSize.md,
     fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.text,
-    marginBottom: 2,
+    color: '#FFFFFF',
+    marginBottom: 4,
   },
-  concernLocation: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textLight,
+  analysisCardSubtitle: {
+    fontSize: theme.fontSize.sm,
+    color: '#A0AEC0',
+    marginBottom: 6,
   },
-  severityBadge: {
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 4,
-    borderRadius: theme.borderRadius.sm,
+  progressBar: {
+    height: 6,
+    backgroundColor: '#4A5568',
+    borderRadius: 3,
+    overflow: 'hidden',
   },
-  severityText: {
-    fontSize: theme.fontSize.xs,
-    fontWeight: theme.fontWeight.bold,
-    textTransform: 'uppercase',
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  recommendationsCard: {
+    backgroundColor: '#2D3748',
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
+  },
+  recommendationsTitle: {
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.semibold,
+    color: '#FFFFFF',
+    marginBottom: theme.spacing.sm,
   },
   recommendationItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
+    marginTop: theme.spacing.xs,
   },
-  recommendationNumber: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: theme.colors.accent + '30',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  recommendationNumberText: {
-    fontSize: theme.fontSize.sm,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.accent,
+  recommendationBullet: {
+    fontSize: theme.fontSize.md,
+    color: '#FFFFFF',
+    marginRight: theme.spacing.sm,
   },
   recommendationText: {
     flex: 1,
     fontSize: theme.fontSize.sm,
-    color: theme.colors.textSecondary,
-    lineHeight: 20,
-    paddingTop: 4,
+    color: '#A0AEC0',
+    lineHeight: 18,
   },
   actionButtons: {
     flexDirection: 'row',
@@ -1357,198 +928,5 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.md,
     fontWeight: theme.fontWeight.bold,
     color: theme.colors.text,
-  },
-  overlayContainer: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  overlayDarkBg: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-  },
-  // Acne overlay styles
-  acneSpot: {
-    position: 'absolute',
-    backgroundColor: '#F5656590',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#F56565',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 8,
-  },
-  acneSpotInner: {
-    width: '60%',
-    height: '60%',
-    borderRadius: 100,
-    backgroundColor: '#C53030',
-  },
-  // Hydration overlay styles
-  hydrationFullOverlay: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  moistureDroplet: {
-    position: 'absolute',
-    backgroundColor: '#63B3ED',
-    justifyContent: 'flex-start',
-    alignItems: 'flex-end',
-    shadowColor: '#4299E1',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.6,
-    shadowRadius: 4,
-  },
-  dropletShine: {
-    width: '35%',
-    height: '35%',
-    borderRadius: 100,
-    backgroundColor: '#FFFFFF60',
-    margin: '10%',
-  },
-  // Texture overlay styles
-  textureArea: {
-    position: 'absolute',
-    backgroundColor: '#9F7AEA40',
-    borderRadius: theme.borderRadius.md,
-  },
-  textureGrid: {
-    flex: 1,
-    padding: 2,
-  },
-  textureRow: {
-    flex: 1,
-    flexDirection: 'row',
-  },
-  textureCell: {
-    flex: 1,
-    borderWidth: 0.5,
-    borderColor: '#9F7AEA',
-    margin: 1,
-  },
-  // Redness overlay styles
-  rednessArea: {
-    position: 'absolute',
-    borderRadius: theme.borderRadius.lg,
-    overflow: 'hidden',
-  },
-  rednessGradient: {
-    flex: 1,
-  },
-  // Dark spots overlay styles
-  darkSpot: {
-    position: 'absolute',
-    overflow: 'hidden',
-    shadowColor: '#805AD5',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.6,
-    shadowRadius: 6,
-  },
-  darkSpotGradient: {
-    flex: 1,
-  },
-  // Skin score overlay styles
-  faceOutline: {
-    position: 'absolute',
-    top: '15%',
-    left: '20%',
-    right: '20%',
-    bottom: '25%',
-  },
-  faceOvalBorder: {
-    ...StyleSheet.absoluteFillObject,
-    borderWidth: 3,
-    borderColor: '#7DD3C0',
-    borderRadius: 1000,
-    shadowColor: '#7DD3C0',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 10,
-  },
-  scanGridOverlay: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  scanGridLineH: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: '#7DD3C080',
-  },
-  scanGridLineV: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    width: 1,
-    backgroundColor: '#7DD3C080',
-  },
-  overlayLabel: {
-    position: 'absolute',
-    top: 20,
-    right: 20,
-    borderRadius: theme.borderRadius.md,
-    overflow: 'hidden',
-  },
-  overlayLabelBlur: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    gap: theme.spacing.xs,
-    overflow: 'hidden',
-  },
-  overlayLabelText: {
-    fontSize: theme.fontSize.md,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.text,
-  },
-  kpiButtonsContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingBottom: theme.spacing.md,
-  },
-  kpiScrollContent: {
-    paddingHorizontal: theme.spacing.lg,
-    gap: theme.spacing.sm,
-  },
-  kpiButton: {
-    width: 90,
-    height: 100,
-    borderRadius: theme.borderRadius.lg,
-    overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  kpiButtonActive: {
-    borderColor: theme.colors.primary,
-    transform: [{ scale: 1.05 }],
-  },
-  kpiButtonBlur: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: theme.spacing.sm,
-    overflow: 'hidden',
-  },
-  kpiIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: theme.spacing.xs,
-  },
-  kpiIconActive: {
-    transform: [{ scale: 1.1 }],
-  },
-  kpiValue: {
-    fontSize: 20,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.text,
-    marginBottom: 2,
-  },
-  kpiLabel: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textSecondary,
-    fontWeight: theme.fontWeight.medium,
   },
 });
