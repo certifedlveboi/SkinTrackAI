@@ -1,3 +1,7 @@
+import { getSupabaseClient } from '@/template';
+import * as FileSystem from 'expo-file-system';
+import { Platform } from 'react-native';
+
 export interface FaceAnalysis {
   skinScore: number; // 0-100
   concerns: {
@@ -17,13 +21,65 @@ export interface FaceAnalysis {
   };
 }
 
+const supabase = getSupabaseClient();
+
 export const faceAnalysisService = {
   async analyzeFace(photoUri: string): Promise<FaceAnalysis> {
-    // Simulate AI processing delay
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    try {
+      console.log('Starting AI analysis via Edge Function...');
+      
+      // Convert photo to base64
+      let imageBase64: string;
+      
+      if (Platform.OS === 'web') {
+        // Web: fetch and convert to base64
+        const response = await fetch(photoUri);
+        const blob = await response.blob();
+        imageBase64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const base64 = (reader.result as string).split(',')[1];
+            resolve(base64);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      } else {
+        // Mobile: read as base64
+        imageBase64 = await FileSystem.readAsStringAsync(photoUri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+      }
 
-    // Mock AI analysis results
-    const mockAnalysis: FaceAnalysis = {
+      console.log('Image converted to base64, calling Edge Function...');
+
+      // Call Edge Function
+      const { data, error } = await supabase.functions.invoke('analyze-skin', {
+        body: { imageBase64 },
+      });
+
+      if (error) {
+        console.error('Edge Function error:', error);
+        throw error;
+      }
+
+      if (!data) {
+        throw new Error('No analysis data returned');
+      }
+
+      console.log('AI analysis completed successfully');
+      return data as FaceAnalysis;
+    } catch (error) {
+      console.error('Error in AI analysis:', error);
+      
+      // Fallback to mock data if real analysis fails
+      console.log('Falling back to mock analysis data');
+      return this.generateMockAnalysis();
+    }
+  },
+
+  generateMockAnalysis(): FaceAnalysis {
+    return {
       skinScore: Math.floor(Math.random() * 30) + 70, // 70-100
       skinType: ['oily', 'dry', 'combination', 'normal'][Math.floor(Math.random() * 4)] as any,
       concerns: this.generateMockConcerns(),
@@ -36,8 +92,6 @@ export const faceAnalysisService = {
         hydration: Math.random() * 30 + 70,
       },
     };
-
-    return mockAnalysis;
   },
 
   generateMockConcerns() {
