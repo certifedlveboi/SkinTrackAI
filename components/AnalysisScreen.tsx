@@ -21,8 +21,10 @@ interface AnalysisScreenProps {
   photoUri: string;
   analysis: FaceAnalysis | null;
   isAnalyzing: boolean;
-  onSave: () => void;
-  onRetake: () => void;
+  onSave?: () => void;
+  onRetake?: () => void;
+  onClose?: () => void;
+  viewMode?: boolean;
 }
 
 type AnalysisType = 'hydration' | 'search' | 'poreSize' | 'color' | 'tone' | 'darkSpot' | null;
@@ -33,6 +35,8 @@ export default function AnalysisScreen({
   isAnalyzing,
   onSave,
   onRetake,
+  onClose,
+  viewMode = false,
 }: AnalysisScreenProps) {
   const scanAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -158,7 +162,9 @@ export default function AnalysisScreen({
 
   const handleScanPress = () => {
     // Navigate to camera
-    onRetake();
+    if (onRetake) {
+      onRetake();
+    }
   };
 
   const getTypeConfig = (type: AnalysisType) => {
@@ -540,26 +546,43 @@ export default function AnalysisScreen({
             </View>
 
             {/* Action Buttons */}
-            <View style={styles.actionButtons}>
-              <TouchableOpacity style={styles.retakeButton} onPress={onRetake} activeOpacity={0.8}>
-                <BlurView intensity={30} style={styles.buttonBlur}>
-                  <MaterialIcons name="refresh" size={22} color={theme.colors.text} />
-                  <Text style={styles.retakeButtonText}>Retake</Text>
-                </BlurView>
-              </TouchableOpacity>
-              
-              <TouchableOpacity style={styles.saveButton} onPress={onSave} activeOpacity={0.8}>
-                <LinearGradient
-                  colors={[theme.colors.primary, theme.colors.secondary]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.saveGradient}
-                >
-                  <MaterialIcons name="check-circle" size={22} color={theme.colors.text} />
-                  <Text style={styles.saveButtonText}>Save Analysis</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
+            {!viewMode && (
+              <View style={styles.actionButtons}>
+                <TouchableOpacity style={styles.retakeButton} onPress={onRetake} activeOpacity={0.8}>
+                  <BlurView intensity={30} style={styles.buttonBlur}>
+                    <MaterialIcons name="refresh" size={22} color={theme.colors.text} />
+                    <Text style={styles.retakeButtonText}>Retake</Text>
+                  </BlurView>
+                </TouchableOpacity>
+                
+                <TouchableOpacity style={styles.saveButton} onPress={onSave} activeOpacity={0.8}>
+                  <LinearGradient
+                    colors={[theme.colors.primary, theme.colors.secondary]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.saveGradient}
+                  >
+                    <MaterialIcons name="check-circle" size={22} color={theme.colors.text} />
+                    <Text style={styles.saveButtonText}>Save Analysis</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            )}
+            {viewMode && onClose && (
+              <View style={styles.actionButtons}>
+                <TouchableOpacity style={styles.closeButton} onPress={onClose} activeOpacity={0.8}>
+                  <LinearGradient
+                    colors={[theme.colors.primary, theme.colors.secondary]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.saveGradient}
+                  >
+                    <MaterialIcons name="close" size={22} color={theme.colors.text} />
+                    <Text style={styles.saveButtonText}>Close</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            )}
           </ScrollView>
         </Animated.View>
       )}
@@ -928,5 +951,10 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.md,
     fontWeight: theme.fontWeight.bold,
     color: theme.colors.text,
+  },
+  closeButton: {
+    flex: 1,
+    borderRadius: theme.borderRadius.md,
+    overflow: 'hidden',
   },
 });

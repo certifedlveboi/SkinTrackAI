@@ -29,6 +29,7 @@ export default function HomeScreen() {
   const [analysis, setAnalysis] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+  const [viewingAnalysis, setViewingAnalysis] = useState(false);
 
   // Refresh data when screen comes into focus
   useFocusEffect(
@@ -101,7 +102,29 @@ export default function HomeScreen() {
   const handleRetake = () => {
     setCapturedPhoto(null);
     setAnalysis(null);
+    setViewingAnalysis(false);
     setCameraVisible(true);
+  };
+
+  const handleViewAnalysis = (log: any) => {
+    // Reconstruct the analysis object from stored data
+    const fullAnalysis = {
+      skinScore: log.skinScore,
+      skinType: log.analysis?.skinType || 'Normal',
+      detectedFeatures: log.analysis?.detectedFeatures || {},
+      recommendations: log.analysis?.recommendations || [],
+      concerns: log.analysis?.concerns || [],
+    };
+    
+    setCapturedPhoto(log.photoUri);
+    setAnalysis(fullAnalysis);
+    setViewingAnalysis(true);
+  };
+
+  const handleCloseView = () => {
+    setCapturedPhoto(null);
+    setAnalysis(null);
+    setViewingAnalysis(false);
   };
 
   const handlePreviousPhoto = () => {
@@ -122,7 +145,19 @@ export default function HomeScreen() {
     return ['#F6AD55', '#ED8936'];
   };
 
-  if (capturedPhoto) {
+  if (capturedPhoto && viewingAnalysis) {
+    return (
+      <AnalysisScreen
+        photoUri={capturedPhoto}
+        analysis={analysis}
+        isAnalyzing={false}
+        viewMode={true}
+        onClose={handleCloseView}
+      />
+    );
+  }
+
+  if (capturedPhoto && !viewingAnalysis) {
     return (
       <AnalysisScreen
         photoUri={capturedPhoto}
@@ -287,7 +322,11 @@ export default function HomeScreen() {
                   />
                 </TouchableOpacity>
                 
-                <View style={styles.photoPreview}>
+                <TouchableOpacity 
+                  style={styles.photoPreview}
+                  onPress={() => handleViewAnalysis(currentLog)}
+                  activeOpacity={0.8}
+                >
                   {currentLog.photoUri ? (
                     <Image 
                       source={{ uri: currentLog.photoUri }} 
@@ -306,7 +345,11 @@ export default function HomeScreen() {
                   <Text style={styles.photoCounter}>
                     {currentPhotoIndex + 1} / {logs.length}
                   </Text>
-                </View>
+                  <View style={styles.viewBadge}>
+                    <MaterialIcons name="visibility" size={16} color="#FFFFFF" />
+                    <Text style={styles.viewBadgeText}>View</Text>
+                  </View>
+                </TouchableOpacity>
                 
                 <TouchableOpacity 
                   style={styles.navButton}
@@ -621,6 +664,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: theme.borderRadius.sm,
+    fontWeight: '600',
+  },
+  viewBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(66, 153, 225, 0.9)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: theme.borderRadius.sm,
+  },
+  viewBadgeText: {
+    fontSize: 10,
+    color: '#FFFFFF',
     fontWeight: '600',
   },
   routineItems: {

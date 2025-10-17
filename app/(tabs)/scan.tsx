@@ -61,6 +61,7 @@ export default function ScanScreen() {
             skinType: analysis.skinType,
             detectedFeatures: analysis.detectedFeatures,
             recommendations: analysis.recommendations,
+            concerns: analysis.concerns, // Store full concerns array
           },
         });
 
