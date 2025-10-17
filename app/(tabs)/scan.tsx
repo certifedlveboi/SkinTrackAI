@@ -47,8 +47,12 @@ export default function ScanScreen() {
     if (capturedPhoto && analysis) {
       try {
         setIsSaving(true);
+        console.log('Starting save process...');
+        
         const condition = faceAnalysisService.getConditionFromScore(analysis.skinScore);
         const concerns = analysis.concerns.map((c: any) => c.type);
+        
+        console.log('Saving log with photo:', capturedPhoto);
         
         await addLog({
           date: new Date().toISOString(),
@@ -61,12 +65,16 @@ export default function ScanScreen() {
             skinType: analysis.skinType,
             detectedFeatures: analysis.detectedFeatures,
             recommendations: analysis.recommendations,
-            concerns: analysis.concerns, // Store full concerns array
+            concerns: analysis.concerns,
           },
         });
 
+        console.log('Log saved successfully');
+
         // Refresh data immediately
+        console.log('Refreshing data...');
         await refresh();
+        console.log('Data refreshed');
 
         // Reset state
         setCapturedPhoto(null);
@@ -78,9 +86,9 @@ export default function ScanScreen() {
         
         // Show success message
         showAlert('Success', 'Skin analysis saved successfully!');
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error saving analysis:', error);
-        showAlert('Error', 'Failed to save analysis. Please try again.');
+        showAlert('Error', error?.message || 'Failed to save analysis. Please try again.');
       } finally {
         setIsSaving(false);
       }

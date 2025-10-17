@@ -255,7 +255,16 @@ export default function AnalysisScreen({
     >
       {/* Photo with overlay */}
       <View style={styles.photoContainer}>
-        <Image source={{ uri: photoUri }} style={styles.photo} contentFit="cover" />
+        <Image 
+          source={{ uri: photoUri }} 
+          style={styles.photo} 
+          contentFit="cover"
+          cachePolicy="none"
+          onError={(error) => {
+            console.error('Error loading photo in analysis screen:', error);
+            console.log('Photo URI:', photoUri);
+          }}
+        />
         
         {/* Analysis overlays */}
         {analysis && !isAnalyzing && selectedType && (

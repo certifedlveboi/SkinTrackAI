@@ -73,11 +73,8 @@ export const skinCareService = {
       }
 
       // Get public URL
-      const { data: urlData } = supabase.storage
-        .from('skin-photos')
-        .getPublicUrl(fileName);
-
-      return urlData.publicUrl;
+      // Return the file path, we'll generate signed URLs when retrieving
+      return fileName;
     } catch (error) {
       console.error('Error uploading photo:', error);
       throw error;
@@ -105,16 +102,38 @@ export const skinCareService = {
         return [];
       }
 
-      return (data || []).map(item => ({
-        id: item.id,
-        date: item.created_at,
-        condition: item.condition,
-        concerns: item.concerns || [],
-        notes: item.notes || '',
-        photoUri: item.photo_url,
-        skinScore: item.skin_score,
-        analysis: item.analysis_data,
-      }));
+      // Generate signed URLs for photos (valid for 1 hour)
+      const logsWithSignedUrls = await Promise.all(
+        (data || []).map(async (item) => {
+          let photoUri = item.photo_url;
+          
+          // If photo_url is a storage path (not a full URL), generate signed URL
+          if (photoUri && !photoUri.startsWith('http')) {
+            const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+              .from('skin-photos')
+              .createSignedUrl(photoUri, 3600); // 1 hour expiry
+            
+            if (signedUrlError) {
+              console.error('Error creating signed URL:', signedUrlError);
+            } else if (signedUrlData?.signedUrl) {
+              photoUri = signedUrlData.signedUrl;
+            }
+          }
+          
+          return {
+            id: item.id,
+            date: item.created_at,
+            condition: item.condition,
+            concerns: item.concerns || [],
+            notes: item.notes || '',
+            photoUri,
+            skinScore: item.skin_score,
+            analysis: item.analysis_data,
+          };
+        })
+      );
+
+      return logsWithSignedUrls;
     } catch (error) {
       console.error('Error loading skin logs:', error);
       return [];
@@ -129,14 +148,16 @@ export const skinCareService = {
         throw new Error('User not authenticated');
       }
 
-      // Upload photo to storage
-      const photoUrl = await this.uploadPhoto(log.photoUri, user.id);
+      console.log('Uploading photo...');
+      // Upload photo to storage and get the file path
+      const photoPath = await this.uploadPhoto(log.photoUri, user.id);
+      console.log('Photo uploaded to path:', photoPath);
 
       const { data, error } = await supabase
         .from('skin_analyses')
         .insert({
           user_id: user.id,
-          photo_url: photoUrl,
+          photo_url: photoPath,
           skin_score: log.skinScore,
           condition: log.condition,
           concerns: log.concerns,
@@ -147,9 +168,16 @@ export const skinCareService = {
         .single();
 
       if (error) {
-        console.error('Error adding skin log:', error);
+        console.error('Error adding skin log to database:', error);
         throw error;
       }
+
+      console.log('Skin log saved to database');
+
+      // Generate signed URL for immediate use
+      const { data: signedUrlData } = await supabase.storage
+        .from('skin-photos')
+        .createSignedUrl(photoPath, 3600);
 
       return {
         id: data.id,
@@ -157,7 +185,7 @@ export const skinCareService = {
         condition: data.condition,
         concerns: data.concerns || [],
         notes: data.notes || '',
-        photoUri: data.photo_url,
+        photoUri: signedUrlData?.signedUrl || photoPath,
         skinScore: data.skin_score,
         analysis: data.analysis_data,
       };

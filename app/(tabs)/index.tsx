@@ -107,6 +107,9 @@ export default function HomeScreen() {
   };
 
   const handleViewAnalysis = (log: any) => {
+    console.log('Viewing analysis for log:', log.id);
+    console.log('Photo URI:', log.photoUri);
+    
     // Reconstruct the analysis object from stored data
     const fullAnalysis = {
       skinScore: log.skinScore,
@@ -332,10 +335,13 @@ export default function HomeScreen() {
                       source={{ uri: currentLog.photoUri }} 
                       style={styles.photoImage}
                       contentFit="cover"
+                      cachePolicy="none"
+                      onError={(error) => console.error('Image load error:', error)}
                     />
                   ) : (
                     <View style={styles.photoPlaceholder}>
                       <MaterialIcons name="image" size={60} color="#4A5568" />
+                      <Text style={styles.placeholderText}>No photo</Text>
                     </View>
                   )}
                   <View style={styles.scanBadge}>
