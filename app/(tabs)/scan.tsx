@@ -1,17 +1,21 @@
 import React, { useState } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import CameraScreen from '@/components/CameraScreen';
 import AnalysisScreen from '@/components/AnalysisScreen';
 import { faceAnalysisService } from '@/services/faceAnalysisService';
 import { useSkinCare } from '@/hooks/useSkinCare';
+import { useAlert } from '@/template';
 
 export default function ScanScreen() {
+  const router = useRouter();
+  const { showAlert } = useAlert();
   const [cameraVisible, setCameraVisible] = useState(false);
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const { addLog } = useSkinCare();
+  const [isSaving, setIsSaving] = useState(false);
+  const { addLog, refresh } = useSkinCare();
 
   useFocusEffect(
     React.useCallback(() => {
@@ -41,26 +45,44 @@ export default function ScanScreen() {
 
   const handleSave = async () => {
     if (capturedPhoto && analysis) {
-      const condition = faceAnalysisService.getConditionFromScore(analysis.skinScore);
-      const concerns = analysis.concerns.map((c: any) => c.type);
-      
-      await addLog({
-        date: new Date().toISOString(),
-        condition,
-        concerns,
-        notes: '',
-        photoUri: capturedPhoto,
-        skinScore: analysis.skinScore,
-        analysis: {
-          skinType: analysis.skinType,
-          detectedFeatures: analysis.detectedFeatures,
-          recommendations: analysis.recommendations,
-        },
-      });
+      try {
+        setIsSaving(true);
+        const condition = faceAnalysisService.getConditionFromScore(analysis.skinScore);
+        const concerns = analysis.concerns.map((c: any) => c.type);
+        
+        await addLog({
+          date: new Date().toISOString(),
+          condition,
+          concerns,
+          notes: '',
+          photoUri: capturedPhoto,
+          skinScore: analysis.skinScore,
+          analysis: {
+            skinType: analysis.skinType,
+            detectedFeatures: analysis.detectedFeatures,
+            recommendations: analysis.recommendations,
+          },
+        });
 
-      setCapturedPhoto(null);
-      setAnalysis(null);
-      setCameraVisible(true);
+        // Refresh data immediately
+        await refresh();
+
+        // Reset state
+        setCapturedPhoto(null);
+        setAnalysis(null);
+        setCameraVisible(false);
+        
+        // Navigate to home tab
+        router.push('/(tabs)');
+        
+        // Show success message
+        showAlert('Success', 'Skin analysis saved successfully!');
+      } catch (error) {
+        console.error('Error saving analysis:', error);
+        showAlert('Error', 'Failed to save analysis. Please try again.');
+      } finally {
+        setIsSaving(false);
+      }
     }
   };
 
@@ -81,7 +103,7 @@ export default function ScanScreen() {
       <AnalysisScreen
         photoUri={capturedPhoto}
         analysis={analysis}
-        isAnalyzing={isAnalyzing}
+        isAnalyzing={isAnalyzing || isSaving}
         onSave={handleSave}
         onRetake={handleRetake}
       />

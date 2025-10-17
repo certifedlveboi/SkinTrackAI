@@ -17,21 +17,46 @@ import { faceAnalysisService } from '@/services/faceAnalysisService';
 import CameraScreen from '@/components/CameraScreen';
 import AnalysisScreen from '@/components/AnalysisScreen';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from 'expo-router';
 
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const { logs, addLog } = useSkinCare();
+  const { logs, addLog, refresh } = useSkinCare();
   const [cameraVisible, setCameraVisible] = useState(false);
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
 
+  // Refresh data when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      refresh();
+    }, [refresh])
+  );
+
   const latestLog = useMemo(() => {
     return logs.length > 0 ? logs[0] : null;
   }, [logs]);
+
+  // Get stats from latest analysis
+  const hydrationStatus = useMemo(() => {
+    if (!latestLog?.analysis?.detectedFeatures) return 'Low';
+    const hydration = latestLog.analysis.detectedFeatures.hydration || 0;
+    if (hydration >= 70) return 'Good';
+    if (hydration >= 40) return 'Medium';
+    return 'Low';
+  }, [latestLog]);
+
+  const uvStatus = useMemo(() => {
+    if (!latestLog?.analysis?.detectedFeatures) return 'Low';
+    const damage = latestLog.analysis.detectedFeatures.sunDamage || 0;
+    if (damage <= 30) return 'Low';
+    if (damage <= 60) return 'Medium';
+    return 'High';
+  }, [latestLog]);
 
   const handleCapture = async (uri: string) => {
     setCameraVisible(false);
@@ -167,19 +192,27 @@ export default function HomeScreen() {
                 <MaterialIcons name="opacity" size={20} color="#4299E1" />
               </View>
               <Text style={styles.statusLabel}>Hydration</Text>
+              <Text style={styles.statusSubLabel}>{hydrationStatus}</Text>
             </View>
             <View style={styles.statusIcon}>
               <View style={[styles.iconCircle, { borderColor: '#F6AD55' }]}>
                 <MaterialIcons name="wb-sunny" size={20} color="#F6AD55" />
               </View>
-              <Text style={styles.statusLabel}>UV/Orange</Text>
-              <Text style={styles.statusSubLabel}>(low)</Text>
+              <Text style={styles.statusLabel}>UV</Text>
+              <Text style={styles.statusSubLabel}>{uvStatus}</Text>
             </View>
             <View style={styles.statusIcon}>
-              <View style={[styles.iconCircle, { borderColor: '#B794F4' }]}>
-                <MaterialIcons name="image" size={20} color="#B794F4" />
+              <View style={[styles.iconCircle, { borderColor: latestLog?.concerns.length ? '#F56565' : '#48BB78' }]}>
+                <MaterialIcons 
+                  name={latestLog?.concerns.length ? "warning" : "check-circle"} 
+                  size={20} 
+                  color={latestLog?.concerns.length ? '#F56565' : '#48BB78'} 
+                />
               </View>
-              <Text style={styles.statusLabel}>Low</Text>
+              <Text style={styles.statusLabel}>Status</Text>
+              <Text style={styles.statusSubLabel}>
+                {latestLog?.concerns.length ? `${latestLog.concerns.length} issues` : 'Good'}
+              </Text>
             </View>
           </View>
 
