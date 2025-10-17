@@ -75,27 +75,56 @@ serve(async (req) => {
       throw new Error('N8N_WEBHOOK_URL not configured');
     }
 
-    // Send to n8n webhook
-    const n8nResponse = await fetch(n8nWebhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        userId: user.id,
-        image: imageBase64,
-        timestamp: new Date().toISOString(),
-      }),
-    });
+    console.log('n8n webhook URL configured:', n8nWebhookUrl.substring(0, 50) + '...');
+    console.log('Image size (base64):', imageBase64.length, 'characters');
 
-    if (!n8nResponse.ok) {
-      const errorText = await n8nResponse.text();
-      console.error('n8n webhook error:', errorText);
-      throw new Error(`n8n webhook failed: ${n8nResponse.status} ${errorText}`);
+    const requestBody = {
+      userId: user.id,
+      image: imageBase64,
+      timestamp: new Date().toISOString(),
+    };
+
+    console.log('Sending POST request to n8n...');
+
+    let n8nResponse: Response;
+    try {
+      n8nResponse = await fetch(n8nWebhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      console.log('n8n response status:', n8nResponse.status);
+      console.log('n8n response headers:', JSON.stringify(Object.fromEntries(n8nResponse.headers.entries())));
+    } catch (fetchError) {
+      console.error('Fetch error:', fetchError);
+      throw new Error(`Failed to reach n8n webhook: ${fetchError instanceof Error ? fetchError.message : 'Unknown error'}`);
     }
 
-    const n8nData: N8nResponse = await n8nResponse.json();
-    console.log('Received analysis from n8n:', JSON.stringify(n8nData).substring(0, 200));
+    if (!n8nResponse.ok) {
+      let errorText = '';
+      try {
+        errorText = await n8nResponse.text();
+      } catch (e) {
+        errorText = 'Could not read error response';
+      }
+      console.error('n8n webhook error response:', errorText);
+      throw new Error(`n8n webhook failed: ${n8nResponse.status} - ${errorText}`);
+    }
+
+    let n8nData: N8nResponse;
+    try {
+      const responseText = await n8nResponse.text();
+      console.log('n8n raw response:', responseText.substring(0, 500));
+      n8nData = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('Failed to parse n8n response:', parseError);
+      throw new Error('n8n returned invalid JSON response');
+    }
+
+    console.log('Successfully received analysis from n8n');
 
     // Map n8n response to our analysis format
     const analysis = {
