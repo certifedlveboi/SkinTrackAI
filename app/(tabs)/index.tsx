@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
+  Animated as RNAnimated,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -30,6 +31,50 @@ export default function HomeScreen() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [viewingAnalysis, setViewingAnalysis] = useState(false);
+  
+  // 3D Avatar Animation
+  const rotateAnim = useRef(new RNAnimated.Value(0)).current;
+  const scaleAnim = useRef(new RNAnimated.Value(1)).current;
+
+  useEffect(() => {
+    // Continuous rotation animation
+    const rotateAnimation = RNAnimated.loop(
+      RNAnimated.timing(rotateAnim, {
+        toValue: 1,
+        duration: 6000,
+        useNativeDriver: true,
+      })
+    );
+
+    // Breathing scale animation
+    const scaleAnimation = RNAnimated.loop(
+      RNAnimated.sequence([
+        RNAnimated.timing(scaleAnim, {
+          toValue: 1.05,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+        RNAnimated.timing(scaleAnim, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    rotateAnimation.start();
+    scaleAnimation.start();
+
+    return () => {
+      rotateAnimation.stop();
+      scaleAnimation.stop();
+    };
+  }, []);
+
+  const rotateInterpolate = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
 
   // Refresh data when screen comes into focus
   useFocusEffect(
@@ -254,15 +299,50 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          {/* Right: 3D Character Placeholder */}
+          {/* Right: 3D Character Avatar */}
           <View style={styles.characterContainer}>
-            <LinearGradient
-              colors={['#4C51BF', '#805AD5']}
-              style={styles.characterPlaceholder}
+            <RNAnimated.View
+              style={[
+                styles.avatarWrapper,
+                {
+                  transform: [
+                    { rotateY: rotateInterpolate },
+                    { scale: scaleAnim },
+                  ],
+                },
+              ]}
             >
-              <MaterialIcons name="face" size={80} color="rgba(255,255,255,0.3)" />
-            </LinearGradient>
-            <Text style={styles.characterLabel}>3D Avatar</Text>
+              <LinearGradient
+                colors={['#667EEA', '#764BA2']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.avatarGradient}
+              >
+                <View style={styles.avatarFace}>
+                  {/* Face outline */}
+                  <View style={styles.faceOval}>
+                    {/* Eyes */}
+                    <View style={styles.eyesContainer}>
+                      <View style={styles.eye}>
+                        <View style={styles.eyePupil} />
+                      </View>
+                      <View style={styles.eye}>
+                        <View style={styles.eyePupil} />
+                      </View>
+                    </View>
+                    {/* Nose */}
+                    <View style={styles.nose} />
+                    {/* Mouth */}
+                    <View style={styles.mouth} />
+                  </View>
+                  {/* Hair */}
+                  <View style={styles.hair} />
+                </View>
+                {/* Glow effect */}
+                <View style={styles.glowEffect} />
+              </LinearGradient>
+            </RNAnimated.View>
+            <Text style={styles.characterLabel}>Your Avatar</Text>
           </View>
         </View>
 
@@ -305,11 +385,11 @@ export default function HomeScreen() {
 
         {/* Main Content Cards */}
         <View style={styles.cardsRow}>
-          {/* Daily Routin Card */}
+          {/* Daily Routine Card */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Daily Routin</Text>
-            <Text style={styles.cardSubtitle}>Toe stut ei tor outres yumetion?</Text>
-            <Text style={styles.cardLabel}>Yoan Skin anlog</Text>
+            <Text style={styles.cardTitle}>Daily Routine</Text>
+            <Text style={styles.cardSubtitle}>Time to start capturing your skin journey?</Text>
+            <Text style={styles.cardLabel}>Your Skin Analysis</Text>
             
             {logs.length > 0 && currentLog ? (
               <View style={styles.photoNavigator}>
@@ -387,7 +467,7 @@ export default function HomeScreen() {
           {/* Your Routine Card */}
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Your Routine</Text>
-            <Text style={styles.cardSubtitle}>Your for yow torthnies skin clarity</Text>
+            <Text style={styles.cardSubtitle}>Your daily skincare routine</Text>
             
             <View style={styles.routineItems}>
               <View style={styles.routineItem}>
@@ -447,8 +527,8 @@ export default function HomeScreen() {
 
           {/* View Journey Time Card */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>View 30 Journey Time</Text>
-            <Text style={styles.cardSubtitle}>View for Time 1kegire...</Text>
+            <Text style={styles.cardTitle}>View 30 Day Journey</Text>
+            <Text style={styles.cardSubtitle}>View your journey progress...</Text>
             
             <View style={styles.journeyAvatarContainer}>
               <View style={styles.journeyAvatar}>
@@ -457,7 +537,7 @@ export default function HomeScreen() {
             </View>
             
             <TouchableOpacity style={styles.journeyButton}>
-              <Text style={styles.journeyButtonText}>Still Now</Text>
+              <Text style={styles.journeyButtonText}>Start Now</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -554,17 +634,98 @@ const styles = StyleSheet.create({
   characterContainer: {
     alignItems: 'center',
   },
-  characterPlaceholder: {
+  avatarWrapper: {
     width: 100,
     height: 130,
+    marginBottom: 8,
+  },
+  avatarGradient: {
+    width: '100%',
+    height: '100%',
     borderRadius: theme.borderRadius.lg,
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
+  },
+  avatarFace: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  faceOval: {
+    width: 60,
+    height: 75,
+    backgroundColor: '#FFE4C4',
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  hair: {
+    position: 'absolute',
+    top: 15,
+    width: 70,
+    height: 40,
+    backgroundColor: '#4A2C2A',
+    borderTopLeftRadius: 35,
+    borderTopRightRadius: 35,
+    zIndex: 1,
+  },
+  eyesContainer: {
+    flexDirection: 'row',
+    gap: 18,
+    marginTop: 20,
     marginBottom: 8,
+  },
+  eye: {
+    width: 12,
+    height: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  eyePupil: {
+    width: 6,
+    height: 6,
+    backgroundColor: '#2D3748',
+    borderRadius: 3,
+  },
+  nose: {
+    width: 8,
+    height: 10,
+    backgroundColor: '#FFD4A3',
+    borderRadius: 4,
+    marginBottom: 8,
+  },
+  mouth: {
+    width: 20,
+    height: 10,
+    borderBottomLeftRadius: 10,
+    borderBottomRightRadius: 10,
+    borderWidth: 2,
+    borderColor: '#E8B4A0',
+    borderTopWidth: 0,
+  },
+  glowEffect: {
+    position: 'absolute',
+    width: '120%',
+    height: '120%',
+    borderRadius: theme.borderRadius.lg,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    top: -10,
+    left: -10,
   },
   characterLabel: {
     fontSize: 10,
     color: '#A0AEC0',
+    fontWeight: '600',
   },
   snapshotButtons: {
     flexDirection: 'row',
