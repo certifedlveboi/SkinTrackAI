@@ -105,27 +105,60 @@ export const skinCareService = {
       // Generate signed URLs for photos (valid for 7 days)
       const logsWithSignedUrls = await Promise.all(
         (data || []).map(async (item) => {
-          let photoUri = item.photo_url;
+          let photoUri = '';
           
-          // If photo_url is a storage path (not a full URL), generate signed URL
-          if (photoUri && !photoUri.startsWith('http')) {
+          // Always generate signed URL for private bucket
+          if (item.photo_url) {
             try {
-              const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-                .from('skin-photos')
-                .createSignedUrl(photoUri, 604800); // 7 days expiry (in seconds)
-              
-              if (signedUrlError) {
-                console.error('Error creating signed URL for', photoUri, ':', signedUrlError);
-                // Keep the original path as fallback
-              } else if (signedUrlData?.signedUrl) {
-                photoUri = signedUrlData.signedUrl;
-                console.log('Generated signed URL successfully');
+              // If it's already a signed URL (starts with http), check if it's still valid
+              if (item.photo_url.startsWith('http')) {
+                // Try to extract the path from the URL
+                const urlMatch = item.photo_url.match(/\/storage\/v1\/object\/sign\/skin-photos\/(.+?)\?/);
+                const storagePath = urlMatch ? urlMatch[1] : item.photo_url;
+                
+                if (storagePath.startsWith('http')) {
+                  // This is a full URL, try to use it
+                  photoUri = item.photo_url;
+                  console.log('Using existing signed URL');
+                } else {
+                  // Generate new signed URL from path
+                  const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+                    .from('skin-photos')
+                    .createSignedUrl(storagePath, 604800);
+                  
+                  if (signedUrlError) {
+                    console.error('Error regenerating signed URL:', signedUrlError);
+                  } else if (signedUrlData?.signedUrl) {
+                    photoUri = signedUrlData.signedUrl;
+                    console.log('Regenerated signed URL successfully');
+                  }
+                }
               } else {
-                console.error('No signed URL returned for', photoUri);
+                // It's a storage path, generate signed URL
+                console.log('Generating signed URL for path:', item.photo_url);
+                const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+                  .from('skin-photos')
+                  .createSignedUrl(item.photo_url, 604800); // 7 days expiry
+                
+                if (signedUrlError) {
+                  console.error('Error creating signed URL for', item.photo_url, ':', signedUrlError);
+                  console.error('Full error object:', JSON.stringify(signedUrlError));
+                } else if (signedUrlData?.signedUrl) {
+                  photoUri = signedUrlData.signedUrl;
+                  console.log('Generated signed URL successfully:', photoUri.substring(0, 100) + '...');
+                } else {
+                  console.error('No signed URL returned for', item.photo_url);
+                }
               }
             } catch (err) {
-              console.error('Exception generating signed URL:', err);
+              console.error('Exception generating signed URL for', item.photo_url, ':', err);
             }
+          }
+          
+          // If we still don't have a valid URL, log warning
+          if (!photoUri || !photoUri.startsWith('http')) {
+            console.warn('Failed to generate valid URL for photo, using empty string');
+            photoUri = ''; // Use empty string instead of invalid path
           }
           
           return {
@@ -141,6 +174,7 @@ export const skinCareService = {
         })
       );
 
+      console.log(`Loaded ${logsWithSignedUrls.length} skin logs with signed URLs`);
       return logsWithSignedUrls;
     } catch (error) {
       console.error('Error loading skin logs:', error);
@@ -183,16 +217,24 @@ export const skinCareService = {
       console.log('Skin log saved to database');
 
       // Generate signed URL for immediate use (7 days expiry)
+      console.log('Generating signed URL for immediate use...');
       const { data: signedUrlData, error: signedUrlError } = await supabase.storage
         .from('skin-photos')
         .createSignedUrl(photoPath, 604800); // 7 days
 
       if (signedUrlError) {
         console.error('Error generating signed URL:', signedUrlError);
+        console.error('Full error:', JSON.stringify(signedUrlError));
+        throw new Error('Failed to generate photo URL: ' + signedUrlError.message);
       }
 
-      const finalPhotoUri = signedUrlData?.signedUrl || photoPath;
-      console.log('Returning photo URI:', finalPhotoUri);
+      if (!signedUrlData?.signedUrl) {
+        console.error('No signed URL returned');
+        throw new Error('Failed to generate photo URL');
+      }
+
+      const finalPhotoUri = signedUrlData.signedUrl;
+      console.log('Generated signed URL successfully:', finalPhotoUri.substring(0, 100) + '...');
 
       return {
         id: data.id,

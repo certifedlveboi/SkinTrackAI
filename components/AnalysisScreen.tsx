@@ -255,18 +255,25 @@ export default function AnalysisScreen({
     >
       {/* Photo with overlay */}
       <View style={styles.photoContainer}>
-        <Image 
-          source={{ uri: photoUri }} 
-          style={styles.photo} 
-          contentFit="cover"
-          cachePolicy="none"
-          onError={(error) => {
-            console.error('Error loading photo in analysis screen:', error);
-            console.log('Photo URI:', photoUri);
-            console.log('URI type:', typeof photoUri);
-            console.log('URI starts with http:', photoUri?.startsWith('http'));
-          }}
-        />
+        {photoUri && photoUri.startsWith('http') ? (
+          <Image 
+            source={{ uri: photoUri }} 
+            style={styles.photo} 
+            contentFit="cover"
+            cachePolicy="none"
+            onError={(error) => {
+              console.error('Error loading photo in analysis screen:', error);
+              console.log('Photo URI:', photoUri);
+              console.log('URI type:', typeof photoUri);
+              console.log('URI starts with http:', photoUri?.startsWith('http'));
+            }}
+          />
+        ) : (
+          <View style={[styles.photo, { backgroundColor: '#2D3748', justifyContent: 'center', alignItems: 'center' }]}>
+            <MaterialIcons name="image" size={80} color="#4A5568" />
+            <Text style={{ color: '#A0AEC0', marginTop: 16 }}>Photo unavailable</Text>
+          </View>
+        )}
         
         {/* Analysis overlays */}
         {analysis && !isAnalyzing && selectedType && (

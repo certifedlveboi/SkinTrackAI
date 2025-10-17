@@ -330,7 +330,7 @@ export default function HomeScreen() {
                   onPress={() => handleViewAnalysis(currentLog)}
                   activeOpacity={0.8}
                 >
-                  {currentLog.photoUri ? (
+                  {currentLog.photoUri && currentLog.photoUri.startsWith('http') ? (
                     <Image 
                       source={{ uri: currentLog.photoUri }} 
                       style={styles.photoImage}
@@ -339,13 +339,16 @@ export default function HomeScreen() {
                       onError={(error) => {
                         console.error('Image load error:', error);
                         console.log('Failed URI:', currentLog.photoUri);
-                        console.log('Attempting to reload...');
+                        console.log('URI type:', typeof currentLog.photoUri);
+                        console.log('URI length:', currentLog.photoUri.length);
                       }}
                     />
                   ) : (
                     <View style={styles.photoPlaceholder}>
                       <MaterialIcons name="image" size={60} color="#4A5568" />
-                      <Text style={styles.placeholderText}>No photo</Text>
+                      <Text style={styles.placeholderText}>
+                        {currentLog.photoUri ? 'Loading...' : 'No photo'}
+                      </Text>
                     </View>
                   )}
                   <View style={styles.scanBadge}>
