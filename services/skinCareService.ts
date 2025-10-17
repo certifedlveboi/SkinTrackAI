@@ -1,4 +1,7 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getSupabaseClient } from '@/template';
+import * as FileSystem from 'expo-file-system';
+import { Platform } from 'react-native';
+import { decode } from 'base64-arraybuffer';
 
 export interface SkinLog {
   id: string;
@@ -25,15 +28,93 @@ export interface Product {
   notes?: string;
 }
 
-const SKIN_LOGS_KEY = '@skincare_logs';
-const PRODUCTS_KEY = '@skincare_products';
+const supabase = getSupabaseClient();
 
 export const skinCareService = {
+  // Helper function to upload photo to storage
+  async uploadPhoto(uri: string, userId: string): Promise<string> {
+    try {
+      const timestamp = Date.now();
+      const fileName = `${userId}/${timestamp}.jpg`;
+
+      let photoData: string | ArrayBuffer;
+
+      if (Platform.OS === 'web') {
+        // Web: use fetch + blob
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        photoData = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const base64 = (reader.result as string).split(',')[1];
+            resolve(decode(base64));
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        }) as ArrayBuffer;
+      } else {
+        // Mobile: use base64-arraybuffer conversion
+        const base64 = await FileSystem.readAsStringAsync(uri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        photoData = decode(base64);
+      }
+
+      const { data, error } = await supabase.storage
+        .from('skin-photos')
+        .upload(fileName, photoData, {
+          contentType: 'image/jpeg',
+          upsert: false,
+        });
+
+      if (error) {
+        console.error('Upload error:', error);
+        throw error;
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('skin-photos')
+        .getPublicUrl(fileName);
+
+      return urlData.publicUrl;
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      throw error;
+    }
+  },
+
   // Skin Logs
   async getSkinLogs(): Promise<SkinLog[]> {
     try {
-      const data = await AsyncStorage.getItem(SKIN_LOGS_KEY);
-      return data ? JSON.parse(data) : [];
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        console.log('No authenticated user');
+        return [];
+      }
+
+      const { data, error } = await supabase
+        .from('skin_analyses')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching skin logs:', error);
+        return [];
+      }
+
+      return (data || []).map(item => ({
+        id: item.id,
+        date: item.created_at,
+        condition: item.condition,
+        concerns: item.concerns || [],
+        notes: item.notes || '',
+        photoUri: item.photo_url,
+        skinScore: item.skin_score,
+        analysis: item.analysis_data,
+      }));
     } catch (error) {
       console.error('Error loading skin logs:', error);
       return [];
@@ -42,14 +123,44 @@ export const skinCareService = {
 
   async addSkinLog(log: Omit<SkinLog, 'id'>): Promise<SkinLog> {
     try {
-      const logs = await this.getSkinLogs();
-      const newLog: SkinLog = {
-        ...log,
-        id: Date.now().toString(),
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      // Upload photo to storage
+      const photoUrl = await this.uploadPhoto(log.photoUri, user.id);
+
+      const { data, error } = await supabase
+        .from('skin_analyses')
+        .insert({
+          user_id: user.id,
+          photo_url: photoUrl,
+          skin_score: log.skinScore,
+          condition: log.condition,
+          concerns: log.concerns,
+          notes: log.notes,
+          analysis_data: log.analysis,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error adding skin log:', error);
+        throw error;
+      }
+
+      return {
+        id: data.id,
+        date: data.created_at,
+        condition: data.condition,
+        concerns: data.concerns || [],
+        notes: data.notes || '',
+        photoUri: data.photo_url,
+        skinScore: data.skin_score,
+        analysis: data.analysis_data,
       };
-      logs.unshift(newLog);
-      await AsyncStorage.setItem(SKIN_LOGS_KEY, JSON.stringify(logs));
-      return newLog;
     } catch (error) {
       console.error('Error adding skin log:', error);
       throw error;
@@ -58,11 +169,22 @@ export const skinCareService = {
 
   async updateSkinLog(id: string, updates: Partial<SkinLog>): Promise<void> {
     try {
-      const logs = await this.getSkinLogs();
-      const index = logs.findIndex(log => log.id === id);
-      if (index !== -1) {
-        logs[index] = { ...logs[index], ...updates };
-        await AsyncStorage.setItem(SKIN_LOGS_KEY, JSON.stringify(logs));
+      const updateData: any = {};
+      
+      if (updates.condition) updateData.condition = updates.condition;
+      if (updates.concerns) updateData.concerns = updates.concerns;
+      if (updates.notes !== undefined) updateData.notes = updates.notes;
+      if (updates.skinScore) updateData.skin_score = updates.skinScore;
+      if (updates.analysis) updateData.analysis_data = updates.analysis;
+
+      const { error } = await supabase
+        .from('skin_analyses')
+        .update(updateData)
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error updating skin log:', error);
+        throw error;
       }
     } catch (error) {
       console.error('Error updating skin log:', error);
@@ -72,64 +194,40 @@ export const skinCareService = {
 
   async deleteSkinLog(id: string): Promise<void> {
     try {
-      const logs = await this.getSkinLogs();
-      const filtered = logs.filter(log => log.id !== id);
-      await AsyncStorage.setItem(SKIN_LOGS_KEY, JSON.stringify(filtered));
+      const { error } = await supabase
+        .from('skin_analyses')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error deleting skin log:', error);
+        throw error;
+      }
     } catch (error) {
       console.error('Error deleting skin log:', error);
       throw error;
     }
   },
 
-  // Products
+  // Products - keeping local storage for now
   async getProducts(): Promise<Product[]> {
-    try {
-      const data = await AsyncStorage.getItem(PRODUCTS_KEY);
-      return data ? JSON.parse(data) : [];
-    } catch (error) {
-      console.error('Error loading products:', error);
-      return [];
-    }
+    // TODO: Implement products table in backend
+    return [];
   },
 
   async addProduct(product: Omit<Product, 'id'>): Promise<Product> {
-    try {
-      const products = await this.getProducts();
-      const newProduct: Product = {
-        ...product,
-        id: Date.now().toString(),
-      };
-      products.unshift(newProduct);
-      await AsyncStorage.setItem(PRODUCTS_KEY, JSON.stringify(products));
-      return newProduct;
-    } catch (error) {
-      console.error('Error adding product:', error);
-      throw error;
-    }
+    // TODO: Implement products table in backend
+    return {
+      ...product,
+      id: Date.now().toString(),
+    };
   },
 
   async updateProduct(id: string, updates: Partial<Product>): Promise<void> {
-    try {
-      const products = await this.getProducts();
-      const index = products.findIndex(p => p.id === id);
-      if (index !== -1) {
-        products[index] = { ...products[index], ...updates };
-        await AsyncStorage.setItem(PRODUCTS_KEY, JSON.stringify(products));
-      }
-    } catch (error) {
-      console.error('Error updating product:', error);
-      throw error;
-    }
+    // TODO: Implement products table in backend
   },
 
   async deleteProduct(id: string): Promise<void> {
-    try {
-      const products = await this.getProducts();
-      const filtered = products.filter(p => p.id !== id);
-      await AsyncStorage.setItem(PRODUCTS_KEY, JSON.stringify(filtered));
-    } catch (error) {
-      console.error('Error deleting product:', error);
-      throw error;
-    }
+    // TODO: Implement products table in backend
   },
 };

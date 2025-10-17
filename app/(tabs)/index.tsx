@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Dimensions,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle } from 'react-native-svg';
@@ -254,9 +255,17 @@ export default function HomeScreen() {
                 </TouchableOpacity>
                 
                 <View style={styles.photoPreview}>
-                  <View style={styles.photoPlaceholder}>
-                    <MaterialIcons name="image" size={60} color="#4A5568" />
-                  </View>
+                  {currentLog.photoUri ? (
+                    <Image 
+                      source={{ uri: currentLog.photoUri }} 
+                      style={styles.photoImage}
+                      contentFit="cover"
+                    />
+                  ) : (
+                    <View style={styles.photoPlaceholder}>
+                      <MaterialIcons name="image" size={60} color="#4A5568" />
+                    </View>
+                  )}
                   <View style={styles.scanBadge}>
                     <MaterialIcons name="check-circle" size={16} color="#48BB78" />
                     <Text style={styles.scanBadgeText}>Scan</Text>
@@ -541,6 +550,11 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  photoImage: {
+    aspectRatio: 4 / 3,
+    width: '100%',
+    borderRadius: theme.borderRadius.md,
   },
   placeholderText: {
     fontSize: 11,

@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { skinCareService, SkinLog, Product } from '@/services/skinCareService';
+import { getSupabaseClient } from '@/template';
+
+const supabase = getSupabaseClient();
 
 export function useSkinCare() {
   const [logs, setLogs] = useState<SkinLog[]>([]);
@@ -21,6 +24,15 @@ export function useSkinCare() {
       setLoading(false);
     }
   }, []);
+
+  // Listen to realtime changes via polling
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadData();
+    }, 5000); // Refresh every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [loadData]);
 
   useEffect(() => {
     loadData();
