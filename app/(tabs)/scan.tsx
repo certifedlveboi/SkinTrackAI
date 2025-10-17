@@ -124,8 +124,31 @@ export default function ScanScreen() {
       });
 
       if (error) {
-        console.error('Test webhook error:', error);
-        showAlert('Webhook Test Failed', `Error: ${error.message}`);
+        console.error('Test webhook error details:', {
+          message: error.message,
+          context: error.context,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+        });
+        
+        // Extract detailed error message
+        let errorDetails = error.message;
+        if (error.context) {
+          try {
+            const context = typeof error.context === 'string' ? JSON.parse(error.context) : error.context;
+            if (context.error) {
+              errorDetails = context.error;
+            }
+          } catch (e) {
+            // Context is not JSON
+          }
+        }
+        
+        showAlert(
+          'Webhook Test Failed',
+          `${errorDetails}\n\nCheck Dashboard → Edge Functions for detailed logs`
+        );
       } else {
         console.log('Test webhook success:', data);
         showAlert(

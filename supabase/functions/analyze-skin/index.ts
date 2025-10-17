@@ -158,12 +158,22 @@ serve(async (req) => {
       status: 200,
     });
   } catch (error) {
-    console.error('Error in analyze-skin function:', error);
+    console.error('=== CRITICAL ERROR in analyze-skin function ===');
+    console.error('Error type:', error?.constructor?.name);
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
+    console.error('Full error:', JSON.stringify(error, null, 2));
+    console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
+    
+    // Create detailed error response
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorResponse = {
+      error: errorMessage,
+      timestamp: new Date().toISOString(),
+      details: 'Check Edge Function logs in Dashboard for more information',
+    };
     
     return new Response(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : 'Unknown error',
-      }),
+      JSON.stringify(errorResponse),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
