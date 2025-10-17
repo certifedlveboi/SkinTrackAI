@@ -5,65 +5,31 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Dimensions,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
+import Svg, { Circle } from 'react-native-svg';
 import { theme } from '@/constants/theme';
 import { useSkinCare } from '@/hooks/useSkinCare';
 import { faceAnalysisService } from '@/services/faceAnalysisService';
-import LogCard from '@/components/LogCard';
 import CameraScreen from '@/components/CameraScreen';
 import AnalysisScreen from '@/components/AnalysisScreen';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-function getGreeting() {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good Morning';
-  if (hour < 17) return 'Good Afternoon';
-  return 'Good Evening';
-}
+const { width } = Dimensions.get('window');
 
-function getUserName() {
-  // In a real app, this would come from user profile
-  return 'Sarah';
-}
-
-export default function TodayScreen() {
+export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { logs, addLog } = useSkinCare();
   const [cameraVisible, setCameraVisible] = useState(false);
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
 
-  const todayLogs = useMemo(() => {
-    const today = new Date();
-    return logs.filter(log => {
-      const logDate = new Date(log.date);
-      return logDate.toDateString() === today.toDateString();
-    });
-  }, [logs]);
-
-  const recentLogs = useMemo(() => {
-    return logs.filter(log => {
-      const logDate = new Date(log.date);
-      const today = new Date();
-      return logDate.toDateString() !== today.toDateString();
-    }).slice(0, 5);
-  }, [logs]);
-
-  const weekStats = useMemo(() => {
-    const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    const weekLogs = logs.filter(log => new Date(log.date) >= weekAgo);
-    const avgScore = weekLogs.length > 0
-      ? Math.round(weekLogs.reduce((sum, log) => sum + log.skinScore, 0) / weekLogs.length)
-      : 0;
-    return {
-      count: weekLogs.length,
-      avgScore,
-    };
+  const latestLog = useMemo(() => {
+    return logs.length > 0 ? logs[0] : null;
   }, [logs]);
 
   const handleCapture = async (uri: string) => {
@@ -102,6 +68,7 @@ export default function TodayScreen() {
 
       setCapturedPhoto(null);
       setAnalysis(null);
+      setCurrentPhotoIndex(0);
     }
   };
 
@@ -109,6 +76,24 @@ export default function TodayScreen() {
     setCapturedPhoto(null);
     setAnalysis(null);
     setCameraVisible(true);
+  };
+
+  const handlePreviousPhoto = () => {
+    if (currentPhotoIndex > 0) {
+      setCurrentPhotoIndex(currentPhotoIndex - 1);
+    }
+  };
+
+  const handleNextPhoto = () => {
+    if (currentPhotoIndex < logs.length - 1) {
+      setCurrentPhotoIndex(currentPhotoIndex + 1);
+    }
+  };
+
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return ['#48BB78', '#38A169'];
+    if (score >= 60) return ['#4299E1', '#3182CE'];
+    return ['#F6AD55', '#ED8936'];
   };
 
   if (capturedPhoto) {
@@ -123,185 +108,261 @@ export default function TodayScreen() {
     );
   }
 
+  const currentLog = logs[currentPhotoIndex];
+  const scoreColors = latestLog ? getScoreColor(latestLog.skinScore) : ['#4299E1', '#3182CE'];
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.greeting}>Hello {getUserName()}</Text>
-          <Text style={styles.subtitle}>Your skin consultation start here!</Text>
-        </View>
-        <TouchableOpacity style={styles.menuButton}>
-          <MaterialIcons name="menu" size={24} color={theme.colors.text} />
-        </TouchableOpacity>
-      </View>
-
       <ScrollView 
         style={styles.content}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
-        {/* Health Report Card */}
-        {logs.length > 0 && todayLogs.length > 0 && (
-          <View style={styles.healthReportCard}>
-            <View style={styles.healthReportHeader}>
-              <View>
-                <Text style={styles.healthReportTitle}>Health Report</Text>
-                <View style={styles.healthReportMeta}>
-                  <MaterialIcons name="circle" size={8} color={theme.colors.success} />
-                  <Text style={styles.healthReportMetaText}>Last Scan</Text>
-                </View>
+        {/* Overall Skin Health Score Section */}
+        <Text style={styles.sectionTitle}>Overall Skin Health Score</Text>
+        
+        <View style={styles.healthScoreContainer}>
+          {/* Left: Score Circle */}
+          <View style={styles.scoreCircleContainer}>
+            <Svg width={140} height={140}>
+              {/* Background circle */}
+              <Circle
+                cx={70}
+                cy={70}
+                r={60}
+                stroke="#2D3748"
+                strokeWidth={12}
+                fill="none"
+              />
+              {/* Progress circle */}
+              <Circle
+                cx={70}
+                cy={70}
+                r={60}
+                stroke="url(#gradient)"
+                strokeWidth={12}
+                fill="none"
+                strokeDasharray={`${(latestLog?.skinScore || 0) * 3.77} 377`}
+                strokeLinecap="round"
+                transform="rotate(-90 70 70)"
+              />
+            </Svg>
+            <View style={styles.scoreContent}>
+              <Text style={styles.scorePercentage}>{latestLog?.skinScore || 0}%</Text>
+              <Text style={styles.scoreChange}>-2% from yesterday</Text>
+            </View>
+            <LinearGradient
+              colors={scoreColors}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.gradientDef}
+            />
+          </View>
+
+          {/* Middle: Status Icons */}
+          <View style={styles.statusIcons}>
+            <View style={styles.statusIcon}>
+              <View style={[styles.iconCircle, { borderColor: '#4299E1' }]}>
+                <MaterialIcons name="opacity" size={20} color="#4299E1" />
               </View>
-              <MaterialIcons name="medical-services" size={32} color={theme.colors.primary} />
+              <Text style={styles.statusLabel}>Hydration</Text>
             </View>
-            <View style={styles.skinHealthContainer}>
-              <Text style={styles.skinHealthLabel}>Your Skin Health</Text>
-              <Text style={styles.skinHealthScore}>{todayLogs[0].skinScore}%</Text>
+            <View style={styles.statusIcon}>
+              <View style={[styles.iconCircle, { borderColor: '#F6AD55' }]}>
+                <MaterialIcons name="wb-sunny" size={20} color="#F6AD55" />
+              </View>
+              <Text style={styles.statusLabel}>UV/Orange</Text>
+              <Text style={styles.statusSubLabel}>(low)</Text>
             </View>
-            <View style={styles.lastScanInfo}>
-              <Text style={styles.lastScanText}>2 days ago</Text>
+            <View style={styles.statusIcon}>
+              <View style={[styles.iconCircle, { borderColor: '#B794F4' }]}>
+                <MaterialIcons name="image" size={20} color="#B794F4" />
+              </View>
+              <Text style={styles.statusLabel}>Low</Text>
             </View>
           </View>
-        )}
 
-        {/* Daily Routine Section */}
-        {logs.length > 0 && (
-          <View style={styles.dailyRoutineCard}>
-            <MaterialIcons name="schedule" size={20} color={theme.colors.info} />
-            <View style={styles.dailyRoutineContent}>
-              <Text style={styles.dailyRoutineDate}>{new Date().toLocaleDateString('en-US', { day: '2-digit', month: 'short' })}</Text>
-              <Text style={styles.dailyRoutineTitle}>Daily Routine</Text>
-            </View>
-            <MaterialIcons name="arrow-forward-ios" size={16} color={theme.colors.textLight} />
-          </View>
-        )}
-
-        {/* Category Tabs */}
-        {logs.length > 0 && (
-          <View style={styles.categoryTabs}>
-            <TouchableOpacity style={[styles.categoryTab, styles.categoryTabActive]}>
-              <Text style={[styles.categoryTabText, styles.categoryTabTextActive]}>All</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.categoryTab}>
-              <Text style={styles.categoryTabText}>Face</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.categoryTab}>
-              <Text style={styles.categoryTabText}>Body</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.categoryTab}>
-              <Text style={styles.categoryTabText}>Lip</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.categoryTab}>
-              <Text style={styles.categoryTabText}>Eye</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Main Action Section */}
-        <View style={styles.mainSection}>
-          {todayLogs.length > 0 ? (
-            <>
-              {todayLogs.map((log, index) => (
-                <View key={log.id} style={styles.todayLogContainer}>
-                  {index === 0 && (
-                    <BlurView intensity={20} style={styles.todayBadge}>
-                      <MaterialIcons name="check-circle" size={16} color={theme.colors.success} />
-                      <Text style={styles.todayBadgeText}>Latest Analysis</Text>
-                    </BlurView>
-                  )}
-                  <LogCard log={log} />
-                </View>
-              ))}
-              
-              <TouchableOpacity 
-                style={styles.scanAgainButton}
-                onPress={() => setCameraVisible(true)}
-                activeOpacity={0.8}
-              >
-                <View style={styles.scanAgainContent}>
-                  <MaterialIcons name="add-a-photo" size={24} color={theme.colors.primary} />
-                  <View style={styles.scanAgainTextContainer}>
-                    <Text style={styles.scanAgainTitle}>New Scan</Text>
-                    <Text style={styles.scanAgainSubtitle}>Capture another analysis</Text>
-                  </View>
-                  <MaterialIcons name="arrow-forward" size={20} color={theme.colors.textLight} />
-                </View>
-              </TouchableOpacity>
-            </>
-          ) : (
-            <TouchableOpacity 
-              style={styles.scanButtonContainer}
-              onPress={() => setCameraVisible(true)}
-              activeOpacity={0.9}
+          {/* Right: 3D Character Placeholder */}
+          <View style={styles.characterContainer}>
+            <LinearGradient
+              colors={['#4C51BF', '#805AD5']}
+              style={styles.characterPlaceholder}
             >
-              <View style={styles.scanButton}>
-                <View style={styles.scanIconContainer}>
-                  <LinearGradient
-                    colors={[theme.colors.primary, theme.colors.secondary]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.scanIconGradient}
-                  >
-                    <MaterialIcons name="camera-alt" size={48} color="#FFFFFF" />
-                  </LinearGradient>
-                </View>
-                <Text style={styles.scanTitle}>Start Your First Scan</Text>
-                <Text style={styles.scanSubtitle}>
-                  AI-powered skin analysis in seconds
-                </Text>
-                <View style={styles.scanFeatures}>
-                  <View style={styles.featureItem}>
-                    <MaterialIcons name="check" size={16} color={theme.colors.success} />
-                    <Text style={styles.featureText}>Instant Results</Text>
-                  </View>
-                  <View style={styles.featureItem}>
-                    <MaterialIcons name="check" size={16} color={theme.colors.success} />
-                    <Text style={styles.featureText}>Track Progress</Text>
-                  </View>
-                  <View style={styles.featureItem}>
-                    <MaterialIcons name="check" size={16} color={theme.colors.success} />
-                    <Text style={styles.featureText}>Get Insights</Text>
-                  </View>
-                </View>
-              </View>
-            </TouchableOpacity>
-          )}
+              <MaterialIcons name="face" size={80} color="rgba(255,255,255,0.3)" />
+            </LinearGradient>
+            <Text style={styles.characterLabel}>3D Avatar</Text>
+          </View>
         </View>
 
-        {/* For You Section */}
-        {logs.length > 0 && (
-          <View style={styles.forYouSection}>
-            <View style={styles.forYouHeader}>
-              <Text style={styles.forYouTitle}>For You</Text>
-              <TouchableOpacity>
-                <Text style={styles.seeAllText}>See all</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.recommendationCard}>
-              <View style={styles.recommendationImagePlaceholder}>
-                <MaterialIcons name="spa" size={48} color={theme.colors.primary} />
-              </View>
-              <View style={styles.recommendationContent}>
-                <Text style={styles.recommendationTitle}>Natural Face Care</Text>
-                <Text style={styles.recommendationSubtitle}>Recommended for your skin type</Text>
-              </View>
-            </View>
-          </View>
-        )}
+        {/* Daily Snapshot Buttons */}
+        <Text style={styles.sectionTitle}>Daily Snapshot</Text>
+        <View style={styles.snapshotButtons}>
+          <TouchableOpacity 
+            style={[styles.snapshotButton, { backgroundColor: '#4299E1' }]}
+            onPress={() => setCameraVisible(true)}
+          >
+            <MaterialIcons name="camera-alt" size={28} color="#FFFFFF" />
+            <Text style={styles.snapshotButtonText}>Scan</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.snapshotButton}>
+            <MaterialIcons name="face" size={28} color="#A0AEC0" />
+            <Text style={styles.snapshotButtonText}>Face</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.snapshotButton}>
+            <MaterialIcons name="settings" size={28} color="#A0AEC0" />
+            <Text style={styles.snapshotButtonText}>Routine</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.snapshotButton}>
+            <MaterialIcons name="shopping-bag" size={28} color="#A0AEC0" />
+            <Text style={styles.snapshotButtonText}>Products</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.snapshotButton}>
+            <MaterialIcons name="search" size={28} color="#A0AEC0" />
+            <Text style={styles.snapshotButtonText}>Insights</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={[styles.snapshotButton, { backgroundColor: '#B794F4' }]}>
+            <MaterialIcons name="compare-arrows" size={28} color="#FFFFFF" />
+            <Text style={styles.snapshotButtonText}>Insights</Text>
+          </TouchableOpacity>
+        </View>
 
-        {/* Recent History */}
-        {recentLogs.length > 0 && (
-          <View style={styles.historySection}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Recent History</Text>
-              <View style={styles.countBadge}>
-                <Text style={styles.countText}>{logs.length - todayLogs.length}</Text>
+        {/* Main Content Cards */}
+        <View style={styles.cardsRow}>
+          {/* Daily Routin Card */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Daily Routin</Text>
+            <Text style={styles.cardSubtitle}>Toe stut ei tor outres yumetion?</Text>
+            <Text style={styles.cardLabel}>Yoan Skin anlog</Text>
+            
+            {logs.length > 0 && currentLog ? (
+              <View style={styles.photoNavigator}>
+                <TouchableOpacity 
+                  style={styles.navButton}
+                  onPress={handlePreviousPhoto}
+                  disabled={currentPhotoIndex === 0}
+                >
+                  <MaterialIcons 
+                    name="chevron-left" 
+                    size={24} 
+                    color={currentPhotoIndex === 0 ? '#4A5568' : '#FFFFFF'} 
+                  />
+                </TouchableOpacity>
+                
+                <View style={styles.photoPreview}>
+                  <View style={styles.photoPlaceholder}>
+                    <MaterialIcons name="image" size={60} color="#4A5568" />
+                  </View>
+                  <View style={styles.scanBadge}>
+                    <MaterialIcons name="check-circle" size={16} color="#48BB78" />
+                    <Text style={styles.scanBadgeText}>Scan</Text>
+                  </View>
+                  <Text style={styles.photoCounter}>
+                    {currentPhotoIndex + 1} / {logs.length}
+                  </Text>
+                </View>
+                
+                <TouchableOpacity 
+                  style={styles.navButton}
+                  onPress={handleNextPhoto}
+                  disabled={currentPhotoIndex === logs.length - 1}
+                >
+                  <MaterialIcons 
+                    name="chevron-right" 
+                    size={24} 
+                    color={currentPhotoIndex === logs.length - 1 ? '#4A5568' : '#FFFFFF'} 
+                  />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.photoPlaceholder}>
+                <MaterialIcons name="add-photo-alternate" size={60} color="#4A5568" />
+                <Text style={styles.placeholderText}>No photos yet</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Your Routine Card */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Your Routine</Text>
+            <Text style={styles.cardSubtitle}>Your for yow torthnies skin clarity</Text>
+            
+            <View style={styles.routineItems}>
+              <View style={styles.routineItem}>
+                <View style={styles.routineIconContainer}>
+                  <MaterialIcons name="cleaning-services" size={20} color="#A0AEC0" />
+                </View>
+                <View style={styles.routineTextContainer}>
+                  <Text style={styles.routineText}>Cleanse</Text>
+                  <Text style={styles.routineSubText}>AM/PM</Text>
+                </View>
+                <View style={[styles.toggle, styles.toggleOn]}>
+                  <View style={styles.toggleThumb} />
+                </View>
+              </View>
+
+              <View style={styles.routineItem}>
+                <View style={styles.routineIconContainer}>
+                  <MaterialIcons name="opacity" size={20} color="#A0AEC0" />
+                </View>
+                <Text style={styles.routineText}>Apply Serum</Text>
+                <View style={styles.toggle}>
+                  <View style={[styles.toggleThumb, styles.toggleThumbOff]} />
+                </View>
+              </View>
+
+              <View style={styles.routineItem}>
+                <View style={styles.routineIconContainer}>
+                  <MaterialIcons name="wb-sunny" size={20} color="#A0AEC0" />
+                </View>
+                <Text style={styles.routineText}>SPF 30+ AM</Text>
+                <View style={[styles.toggle, styles.toggleOn]}>
+                  <View style={styles.toggleThumb} />
+                </View>
               </View>
             </View>
-            {recentLogs.map(log => (
-              <LogCard key={log.id} log={log} />
-            ))}
           </View>
-        )}
+        </View>
+
+        {/* Bottom Cards Row */}
+        <View style={styles.cardsRow}>
+          {/* Latest Analysis Card */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Latest Analysis</Text>
+            
+            <View style={styles.analysisItem}>
+              <View style={styles.analysisIconContainer}>
+                <MaterialIcons name="assessment" size={24} color="#4299E1" />
+              </View>
+              <Text style={styles.analysisText}>
+                Score {latestLog?.skinScore || 0}%
+              </Text>
+              <View style={[styles.toggle, styles.toggleOn]}>
+                <View style={styles.toggleThumb} />
+              </View>
+            </View>
+          </View>
+
+          {/* View Journey Time Card */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>View 30 Journey Time</Text>
+            <Text style={styles.cardSubtitle}>View for Time 1kegire...</Text>
+            
+            <View style={styles.journeyAvatarContainer}>
+              <View style={styles.journeyAvatar}>
+                <MaterialIcons name="face" size={32} color="#B794F4" />
+              </View>
+            </View>
+            
+            <TouchableOpacity style={styles.journeyButton}>
+              <Text style={styles.journeyButtonText}>Still Now</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </ScrollView>
 
       <CameraScreen
@@ -316,37 +377,7 @@ export default function TodayScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.backgroundGradientStart,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.lg,
-    paddingBottom: theme.spacing.md,
-  },
-  headerLeft: {
-    flex: 1,
-  },
-  greeting: {
-    fontSize: 32,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.text,
-    marginBottom: 6,
-  },
-  subtitle: {
-    fontSize: theme.fontSize.md,
-    color: theme.colors.textSecondary,
-    fontWeight: theme.fontWeight.regular,
-  },
-  menuButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: theme.colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: '#1A202C',
   },
   content: {
     flex: 1,
@@ -354,288 +385,289 @@ const styles = StyleSheet.create({
   contentContainer: {
     padding: theme.spacing.lg,
   },
-  healthReportCard: {
-    backgroundColor: theme.colors.cardBg,
-    borderRadius: theme.borderRadius.lg,
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: theme.fontWeight.bold,
+    color: '#FFFFFF',
+    marginBottom: theme.spacing.md,
+    marginTop: theme.spacing.md,
+  },
+  healthScoreContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#2D3748',
+    borderRadius: theme.borderRadius.xl,
     padding: theme.spacing.lg,
     marginBottom: theme.spacing.lg,
-    shadowColor: theme.colors.cardShadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
-    elevation: 3,
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  healthReportHeader: {
+  scoreCircleContainer: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scoreContent: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scorePercentage: {
+    fontSize: 32,
+    fontWeight: theme.fontWeight.bold,
+    color: '#FFFFFF',
+  },
+  scoreChange: {
+    fontSize: 11,
+    color: '#48BB78',
+    marginTop: 4,
+  },
+  gradientDef: {
+    position: 'absolute',
+    width: 0,
+    height: 0,
+  },
+  statusIcons: {
+    gap: theme.spacing.md,
+    alignItems: 'center',
+  },
+  statusIcon: {
+    alignItems: 'center',
+  },
+  iconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
+    backgroundColor: '#1A202C',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  statusLabel: {
+    fontSize: 10,
+    color: '#A0AEC0',
+    textAlign: 'center',
+  },
+  statusSubLabel: {
+    fontSize: 9,
+    color: '#718096',
+    textAlign: 'center',
+  },
+  characterContainer: {
+    alignItems: 'center',
+  },
+  characterPlaceholder: {
+    width: 100,
+    height: 130,
+    borderRadius: theme.borderRadius.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  characterLabel: {
+    fontSize: 10,
+    color: '#A0AEC0',
+  },
+  snapshotButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    marginBottom: theme.spacing.lg,
+    gap: 8,
+  },
+  snapshotButton: {
+    flex: 1,
+    backgroundColor: '#2D3748',
+    borderRadius: theme.borderRadius.lg,
+    paddingVertical: theme.spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 70,
+  },
+  snapshotButtonText: {
+    fontSize: 11,
+    color: '#FFFFFF',
+    marginTop: 6,
+    fontWeight: '500',
+  },
+  cardsRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
     marginBottom: theme.spacing.lg,
   },
-  healthReportTitle: {
-    fontSize: theme.fontSize.lg,
+  card: {
+    flex: 1,
+    backgroundColor: '#2D3748',
+    borderRadius: theme.borderRadius.xl,
+    padding: theme.spacing.md,
+  },
+  cardTitle: {
+    fontSize: 16,
     fontWeight: theme.fontWeight.bold,
-    color: theme.colors.text,
+    color: '#FFFFFF',
     marginBottom: 6,
   },
-  healthReportMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  healthReportMetaText: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.textSecondary,
-  },
-  skinHealthContainer: {
-    backgroundColor: theme.colors.text,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.md,
+  cardSubtitle: {
+    fontSize: 12,
+    color: '#718096',
     marginBottom: theme.spacing.sm,
   },
-  skinHealthLabel: {
-    fontSize: theme.fontSize.sm,
-    color: '#FFFFFF',
-    marginBottom: 4,
-    opacity: 0.8,
+  cardLabel: {
+    fontSize: 11,
+    color: '#A0AEC0',
+    marginBottom: theme.spacing.sm,
   },
-  skinHealthScore: {
-    fontSize: 28,
-    fontWeight: theme.fontWeight.bold,
-    color: '#FFFFFF',
-  },
-  lastScanInfo: {
-    paddingTop: theme.spacing.sm,
-  },
-  lastScanText: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.textLight,
-  },
-  dailyRoutineCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.cardBg,
-    borderRadius: theme.borderRadius.lg,
-    padding: theme.spacing.md,
-    marginBottom: theme.spacing.lg,
-    shadowColor: theme.colors.cardShadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 4,
-    elevation: 2,
-    gap: theme.spacing.sm,
-  },
-  dailyRoutineContent: {
-    flex: 1,
-  },
-  dailyRoutineDate: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textLight,
-    marginBottom: 2,
-  },
-  dailyRoutineTitle: {
-    fontSize: theme.fontSize.md,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.text,
-  },
-  categoryTabs: {
-    flexDirection: 'row',
-    gap: theme.spacing.sm,
-    marginBottom: theme.spacing.lg,
-  },
-  categoryTab: {
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: theme.borderRadius.round,
-    backgroundColor: 'transparent',
-  },
-  categoryTabActive: {
-    backgroundColor: theme.colors.text,
-  },
-  categoryTabText: {
-    fontSize: theme.fontSize.sm,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.textSecondary,
-  },
-  categoryTabTextActive: {
-    color: '#FFFFFF',
-  },
-  mainSection: {
-    marginBottom: theme.spacing.xl,
-  },
-  sectionHeader: {
+  photoNavigator: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: theme.spacing.md,
-    paddingHorizontal: 4,
+    marginTop: theme.spacing.sm,
   },
-  sectionTitle: {
-    fontSize: theme.fontSize.lg,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.text,
-  },
-  todayLogContainer: {
-    marginBottom: theme.spacing.md,
-  },
-  todayBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    alignSelf: 'flex-start',
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 4,
-    borderRadius: theme.borderRadius.sm,
-    backgroundColor: theme.colors.success + '20',
-    marginBottom: theme.spacing.sm,
-  },
-  todayBadgeText: {
-    fontSize: theme.fontSize.xs,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.success,
-  },
-  scanButtonContainer: {
-    marginBottom: theme.spacing.lg,
-  },
-  scanButton: {
-    backgroundColor: theme.colors.cardBg,
-    borderRadius: theme.borderRadius.xl,
-    padding: theme.spacing.xl,
-    alignItems: 'center',
-    shadowColor: theme.colors.cardShadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 5,
-  },
-  scanIconContainer: {
-    marginBottom: theme.spacing.lg,
-  },
-  scanIconGradient: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+  navButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#1A202C',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  scanTitle: {
-    fontSize: 20,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.text,
-    marginBottom: theme.spacing.xs,
-    textAlign: 'center',
+  photoPreview: {
+    flex: 1,
+    marginHorizontal: theme.spacing.xs,
+    position: 'relative',
   },
-  scanSubtitle: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.textLight,
-    marginBottom: theme.spacing.lg,
-    textAlign: 'center',
+  photoPlaceholder: {
+    aspectRatio: 4 / 3,
+    backgroundColor: '#1A202C',
+    borderRadius: theme.borderRadius.md,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  scanFeatures: {
-    alignSelf: 'stretch',
+  placeholderText: {
+    fontSize: 11,
+    color: '#718096',
+    marginTop: 8,
+  },
+  scanBadge: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(26, 32, 44, 0.9)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: theme.borderRadius.sm,
+  },
+  scanBadgeText: {
+    fontSize: 10,
+    color: '#48BB78',
+    fontWeight: '600',
+  },
+  photoCounter: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    fontSize: 10,
+    color: '#FFFFFF',
+    backgroundColor: 'rgba(26, 32, 44, 0.8)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: theme.borderRadius.sm,
+    fontWeight: '600',
+  },
+  routineItems: {
     gap: theme.spacing.sm,
+    marginTop: theme.spacing.sm,
   },
-  featureItem: {
+  routineItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.sm,
     paddingVertical: theme.spacing.xs,
   },
-  featureText: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.textLight,
-    fontWeight: theme.fontWeight.medium,
-  },
-  forYouSection: {
-    marginBottom: theme.spacing.xl,
-  },
-  forYouHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: theme.spacing.md,
-  },
-  forYouTitle: {
-    fontSize: theme.fontSize.lg,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.text,
-  },
-  seeAllText: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.primary,
-    fontWeight: theme.fontWeight.medium,
-  },
-  recommendationCard: {
-    backgroundColor: theme.colors.cardBg,
-    borderRadius: theme.borderRadius.lg,
-    overflow: 'hidden',
-    shadowColor: theme.colors.cardShadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  recommendationImagePlaceholder: {
-    height: 180,
-    backgroundColor: theme.colors.primary + '20',
+  routineIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#1A202C',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  recommendationContent: {
-    padding: theme.spacing.md,
-  },
-  recommendationTitle: {
-    fontSize: theme.fontSize.md,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.text,
-    marginBottom: 4,
-  },
-  recommendationSubtitle: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.textSecondary,
-  },
-  historySection: {
-    marginBottom: theme.spacing.xl,
-  },
-  countBadge: {
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: 4,
-    backgroundColor: theme.colors.primary + '20',
-    borderRadius: theme.borderRadius.round,
-    minWidth: 32,
-    alignItems: 'center',
-  },
-  countText: {
-    fontSize: theme.fontSize.sm,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.primary,
-  },
-  scanAgainButton: {
-    marginTop: theme.spacing.md,
-    borderRadius: theme.borderRadius.lg,
-    backgroundColor: theme.colors.cardBg,
-    shadowColor: theme.colors.cardShadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  scanAgainContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: theme.spacing.md,
-    gap: theme.spacing.md,
-  },
-  scanAgainTextContainer: {
+  routineTextContainer: {
     flex: 1,
   },
-  scanAgainTitle: {
-    fontSize: theme.fontSize.md,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.text,
-    marginBottom: 4,
+  routineText: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: '500',
   },
-  scanAgainSubtitle: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.textLight,
+  routineSubText: {
+    fontSize: 11,
+    color: '#718096',
+  },
+  toggle: {
+    width: 44,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#4A5568',
+    padding: 2,
+    justifyContent: 'center',
+  },
+  toggleOn: {
+    backgroundColor: '#48BB78',
+  },
+  toggleThumb: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    alignSelf: 'flex-end',
+  },
+  toggleThumbOff: {
+    alignSelf: 'flex-start',
+  },
+  analysisItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.sm,
+  },
+  analysisIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#1A202C',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  analysisText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  journeyAvatarContainer: {
+    alignItems: 'center',
+    marginVertical: theme.spacing.md,
+  },
+  journeyAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#1A202C',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  journeyButton: {
+    backgroundColor: '#4299E1',
+    borderRadius: theme.borderRadius.lg,
+    paddingVertical: theme.spacing.sm,
+    alignItems: 'center',
+  },
+  journeyButtonText: {
+    fontSize: 14,
+    fontWeight: theme.fontWeight.bold,
+    color: '#FFFFFF',
   },
 });
