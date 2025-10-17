@@ -336,7 +336,6 @@ export default function HomeScreen() {
                       style={styles.photoImage}
                       contentFit="cover"
                       cachePolicy="none"
-                      placeholder={require('../assets/icon.png')}
                       onError={(error) => {
                         console.error('Image load error:', error);
                         console.log('Failed URI:', currentLog.photoUri);
