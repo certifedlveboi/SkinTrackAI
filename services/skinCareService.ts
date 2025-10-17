@@ -107,47 +107,43 @@ export const skinCareService = {
         (data || []).map(async (item) => {
           let photoUri = '';
           
-          // Always generate signed URL for private bucket
+          // Always generate fresh signed URL for private bucket
           if (item.photo_url) {
             try {
-              // If it's already a signed URL (starts with http), check if it's still valid
+              let filePath = item.photo_url;
+              
+              // If it's a URL (could be public or signed), extract the file path
               if (item.photo_url.startsWith('http')) {
-                // Try to extract the path from the URL
-                const urlMatch = item.photo_url.match(/\/storage\/v1\/object\/sign\/skin-photos\/(.+?)\?/);
-                const storagePath = urlMatch ? urlMatch[1] : item.photo_url;
+                console.log('Extracting file path from URL:', item.photo_url.substring(0, 100) + '...');
                 
-                if (storagePath.startsWith('http')) {
-                  // This is a full URL, try to use it
-                  photoUri = item.photo_url;
-                  console.log('Using existing signed URL');
+                // Match any URL format and extract the file path after /skin-photos/
+                // This handles both public URLs (/object/public/) and signed URLs (/object/sign/)
+                const pathMatch = item.photo_url.match(/\/skin-photos\/([^?]+)/);
+                
+                if (pathMatch) {
+                  filePath = pathMatch[1]; // Extract just the file path (userId/timestamp.jpg)
+                  console.log('Extracted file path:', filePath);
                 } else {
-                  // Generate new signed URL from path
-                  const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-                    .from('skin-photos')
-                    .createSignedUrl(storagePath, 604800);
-                  
-                  if (signedUrlError) {
-                    console.error('Error regenerating signed URL:', signedUrlError);
-                  } else if (signedUrlData?.signedUrl) {
-                    photoUri = signedUrlData.signedUrl;
-                    console.log('Regenerated signed URL successfully');
-                  }
+                  console.error('Could not extract file path from URL:', item.photo_url);
+                  filePath = ''; // Invalid URL format
                 }
-              } else {
-                // It's a storage path, generate signed URL
-                console.log('Generating signed URL for path:', item.photo_url);
+              }
+              
+              // Generate fresh signed URL from the file path
+              if (filePath) {
+                console.log('Generating signed URL for path:', filePath);
                 const { data: signedUrlData, error: signedUrlError } = await supabase.storage
                   .from('skin-photos')
-                  .createSignedUrl(item.photo_url, 604800); // 7 days expiry
+                  .createSignedUrl(filePath, 604800); // 7 days expiry
                 
                 if (signedUrlError) {
-                  console.error('Error creating signed URL for', item.photo_url, ':', signedUrlError);
+                  console.error('Error creating signed URL for', filePath, ':', signedUrlError);
                   console.error('Full error object:', JSON.stringify(signedUrlError));
                 } else if (signedUrlData?.signedUrl) {
                   photoUri = signedUrlData.signedUrl;
-                  console.log('Generated signed URL successfully:', photoUri.substring(0, 100) + '...');
+                  console.log('Generated signed URL successfully');
                 } else {
-                  console.error('No signed URL returned for', item.photo_url);
+                  console.error('No signed URL returned for', filePath);
                 }
               }
             } catch (err) {
